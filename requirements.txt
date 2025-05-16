@@ -5,3 +5,4 @@ jinja2
 numpy
 tiktoken
 python-docx
+python-multipart

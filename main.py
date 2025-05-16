@@ -11,14 +11,16 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-
 
 @app.post("/ask", response_class=HTMLResponse)
 async def ask_question(request: Request, question: str = Form(...)):
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
-    return templates.TemplateResponse("response.html", {"request": request, "answer": answer})
+    return templates.TemplateResponse("response.html", {
+        "request": request,
+        "question": question,
+        "answer": answer
+    })

@@ -1,4 +1,3 @@
-#import json
 import os
 import openai
 import numpy as np
@@ -18,11 +17,4 @@ def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def retrieve_relevant_context(question, top_k=3):
-    question_vector = get_embedding(question)
-    with open(INDEX_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    scored_chunks = [(cosine_similarity(question_vector, item["embedding"]), item["text"]) for item in data]
-    scored_chunks.sort(reverse=True)
-    top_chunks = [text for _, text in scored_chunks[:top_k]]
-    return "\n\n".join(top_chunks)
+    return ""  # Temporariamente sem contexto até subir o índice

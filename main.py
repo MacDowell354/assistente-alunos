@@ -19,8 +19,4 @@ async def read_root(request: Request):
 async def ask_question(request: Request, question: str = Form(...)):
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
-    return templates.TemplateResponse("response.html", {
-        "request": request,
-        "question": question,
-        "answer": answer
-    })
+    return templates.TemplateResponse("response.html", {"request": request, "question": question, "answer": answer})

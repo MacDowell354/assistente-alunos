@@ -19,7 +19,7 @@ async def read_root(request: Request):
 @app.post("/ask", response_class=HTMLResponse)
 async def ask_question(request: Request, question: str = Form(...)):
     context = retrieve_relevant_context(question)
-    answer = generate_answer(question, context, model="gpt-4")
+   answer = generate_answer(question, context)
     return templates.TemplateResponse("response.html", {
         "request": request,
         "question": question,

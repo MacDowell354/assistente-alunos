@@ -3,24 +3,16 @@ import os
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def generate_answer(question, context, model="gpt-4"):
-    prompt = f"""
-    Você é um assistente inteligente para alunos. Responda à pergunta abaixo com base apenas no conteúdo fornecido no contexto. Se não encontrar a resposta no contexto, diga que não sabe.
-
-    Contexto:
-    {context}
-
-    Pergunta: {question}
-    Resposta:
-    """
+def generate_answer(question, context=""):
+    prompt = f"{context}\n\nPergunta: {question}\nResposta:"
     
     response = openai.ChatCompletion.create(
-        model=model,
+        model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "Você é um assistente educacional útil."},
+            {"role": "system", "content": "Você é um assistente que responde perguntas com base no conteúdo do curso."},
             {"role": "user", "content": prompt}
         ],
-        temperature=0.3
+        max_tokens=500
     )
-
-    return response.choices[0].message['content'].strip()
+    
+    return response.choices[0].message["content"].strip()

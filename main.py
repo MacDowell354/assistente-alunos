@@ -1,22 +1,21 @@
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-
-from gpt_utils import generate_answer
-from search_engine import retrieve_relevant_context
+from responder import generate_answer
 
 app = FastAPI()
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def form_get(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/ask", response_class=HTMLResponse)
 async def ask_question(request: Request, question: str = Form(...)):
-    context = retrieve_relevant_context(question)
+    context = ""  # Por enquanto, sem contexto
     answer = generate_answer(question, context)
-    return templates.TemplateResponse("response.html", {"request": request, "question": question, "answer": answer})
+    return templates.TemplateResponse("response.html", {
+        "request": request,
+        "question": question,
+        "answer": answer
+    })

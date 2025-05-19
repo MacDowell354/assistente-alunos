@@ -6,3 +6,4 @@ numpy
 tiktoken
 python-docx
 python-multipart
+llama-index

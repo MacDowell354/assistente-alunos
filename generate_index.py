@@ -1,8 +1,7 @@
 import os
-from llama_index import VectorStoreIndex, SimpleDirectoryReader, ServiceContext, load_index_from_storage
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
-from llama_index.storage.storage_context import StorageContext
 
 # === CONFIGURAÇÃO ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

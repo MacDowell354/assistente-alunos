@@ -1,37 +1,45 @@
 import os
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
+from docx import Document
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
+from llama_index.core.schema import Document as LlamaDocument
 
 # === CONFIGURAÇÃO ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TXT_FILE = "transcricoes.txt"
+TRANSCRIPTION_FILE = "transcricoes.txt"
 OUTPUT_DIR = "storage"
 
 # === VERIFICA A CHAVE ===
 if not OPENAI_API_KEY:
     raise ValueError("A variável de ambiente OPENAI_API_KEY não está definida.")
 
-# === PREPARAR DOCUMENTO ===
-if not os.path.exists(TXT_FILE):
-    raise FileNotFoundError(f"O arquivo {TXT_FILE} não foi encontrado.")
+# === FUNÇÃO PARA LER O .TXT ===
+def read_txt_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
 
-# Copia o txt para uma pasta temporária
-os.makedirs("tmp", exist_ok=True)
-os.system(f"copy {TXT_FILE} tmp\\conteudo.txt" if os.name == "nt" else f"cp {TXT_FILE} tmp/conteudo.txt")
+# === LER A TRANSCRIÇÃO ===
+print("📄 Lendo conteúdo do arquivo...")
+full_text = read_txt_file(TRANSCRIPTION_FILE)
 
-# === CRIAR ÍNDICE ===
-print("📄 Lendo conteúdo...")
-documents = SimpleDirectoryReader("tmp").load_data()
+# === DIVIDIR EM CHUNKS ===
+print("✂️ Dividindo em trechos...")
+parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
+nodes = parser.build_from_text(full_text)
 
+# === EMBEDDINGS ===
 print("🧠 Gerando embeddings com OpenAI...")
-embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
-llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY)
-service_context = ServiceContext.from_defaults(embed_model=embed_model, llm=llm)
+Settings.embed_model = OpenAIEmbedding(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY,
+)
 
-print("🔍 Criando índice vetorial...")
-index = VectorStoreIndex.from_documents(documents, service_context=service_context)
+# === CRIAR DOCUMENTOS E INDEX ===
+documents = [LlamaDocument(text=node.text) for node in nodes]
+index = VectorStoreIndex.from_documents(documents)
 
+# === SALVAR O ÍNDICE ===
 print("💾 Salvando índice em:", OUTPUT_DIR)
 index.storage_context.persist(persist_dir=OUTPUT_DIR)
 

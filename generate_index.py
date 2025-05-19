@@ -1,46 +1,37 @@
 import os
-from docx import Document
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, ServiceContext
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.node_parser import SentenceSplitter
-from tqdm import tqdm
+from llama_index.llms.openai import OpenAI
 
 # === CONFIGURAÇÃO ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TRANSCRIPTION_FILE = "TRANSCRIÇÃO CURSO CONSULTÓRIO HIGH TICKET.docx"
+TXT_FILE = "transcricoes.txt"
 OUTPUT_DIR = "storage"
 
 # === VERIFICA A CHAVE ===
 if not OPENAI_API_KEY:
     raise ValueError("A variável de ambiente OPENAI_API_KEY não está definida.")
 
-# === FUNÇÃO PARA LER O .DOCX ===
-def read_docx_file(file_path):
-    doc = Document(file_path)
-    paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
-    return "\n\n".join(paragraphs)
+# === PREPARAR DOCUMENTO ===
+if not os.path.exists(TXT_FILE):
+    raise FileNotFoundError(f"O arquivo {TXT_FILE} não foi encontrado.")
 
-# === LER A TRANSCRIÇÃO ===
-print("📄 Lendo transcrição...")
-full_text = read_docx_file(TRANSCRIPTION_FILE)
-
-# === DIVIDIR EM CHUNKS ===
-print("✂️ Dividindo em chunks...")
-parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
-chunks = parser.split_text(full_text)
-
-# === EMBEDDINGS ===
-print("🧠 Gerando embeddings...")
-embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
-service_context = ServiceContext.from_defaults(embed_model=embed_model)
+# Copia o txt para uma pasta temporária
+os.makedirs("tmp", exist_ok=True)
+os.system(f"copy {TXT_FILE} tmp\\conteudo.txt" if os.name == "nt" else f"cp {TXT_FILE} tmp/conteudo.txt")
 
 # === CRIAR ÍNDICE ===
-documents = [chunk for chunk in chunks]
-index = VectorStoreIndex.from_documents(
-    documents, service_context=service_context
-)
+print("📄 Lendo conteúdo...")
+documents = SimpleDirectoryReader("tmp").load_data()
 
-# === SALVAR O ÍNDICE ===
+print("🧠 Gerando embeddings com OpenAI...")
+embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY)
+service_context = ServiceContext.from_defaults(embed_model=embed_model, llm=llm)
+
+print("🔍 Criando índice vetorial...")
+index = VectorStoreIndex.from_documents(documents, service_context=service_context)
+
 print("💾 Salvando índice em:", OUTPUT_DIR)
 index.storage_context.persist(persist_dir=OUTPUT_DIR)
 

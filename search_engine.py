@@ -1,61 +1,50 @@
 import os
-import json
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.schema import Document
 from llama_index.core.settings import Settings
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-# === CONFIGURAÇÃO ===
+# === CONFIG ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TRANSCRIPTION_FILE = "transcricoes.txt"
-OUTPUT_DIR = "storage"
+INDEX_DIR = "storage"
 
-# === VERIFICA A CHAVE ===
-if not OPENAI_API_KEY:
-    raise ValueError("⚠️ A variável de ambiente OPENAI_API_KEY não está definida.")
-
-# === FUNÇÃO PARA LER O .TXT ===
-def read_txt_file(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-        return f.read()
-
-# === LER A TRANSCRIÇÃO ===
-print("📄 Lendo conteúdo do arquivo...")
-full_text = read_txt_file(TRANSCRIPTION_FILE)
-
-# === DIVIDIR EM CHUNKS ===
-print("✂️ Dividindo em trechos...")
-parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
-nodes = parser.get_nodes_from_documents([Document(text=full_text)])
-
-# === EMBEDDINGS ===
-print("🧠 Gerando embeddings com OpenAI...")
+# === EMBEDDING SETTINGS ===
 Settings.embed_model = OpenAIEmbedding(
     model="text-embedding-3-small",
     api_key=OPENAI_API_KEY,
 )
 
-# === CRIAR DOCUMENTOS E ÍNDICE ===
-documents = [Document(text=node.text) for node in nodes]
-index = VectorStoreIndex.from_documents(documents)
+# === LOAD INDEX ===
+storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+index = load_index_from_storage(storage_context)
 
-# === SALVAR O ÍNDICE DO LLAMAINDEX ===
-print("💾 Salvando índice em:", OUTPUT_DIR)
-index.storage_context.persist(persist_dir=OUTPUT_DIR)
+# === FASTAPI ===
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-# === SALVAR VERSÃO search_index_structured.json ===
-print("📝 Salvando índice estruturado para uso no search_engine.py...")
-index_data = []
+# === RENDER HTML ===
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-for node in nodes:
-    index_data.append({
-        "text": node.text,
-        "embedding": node.embedding
-    })
+# === RESPOSTA GPT ===
+@app.post("/ask", response_class=HTMLResponse)
+async def ask(request: Request):
+    form = await request.form()
+    question = form.get("question")
 
-with open("search_index_structured.json", "w", encoding="utf-8") as f:
-    json.dump(index_data, f, ensure_ascii=False, indent=2)
+    try:
+        query_engine = index.as_query_engine()
+        response = query_engine.query(question)
+        answer = str(response)
+    except Exception as e:
+        answer = "Desculpe, houve um erro ao gerar a resposta."
 
-print("✅ search_index_structured.json salvo com sucesso.")
-print("🎉 Índice gerado com sucesso!")
+    return templates.TemplateResponse(
+        "response.html",
+        {"request": request, "question": question, "answer": answer}
+    )

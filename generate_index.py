@@ -1,9 +1,8 @@
 import os
-from docx import Document
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.schema import Document as LlamaDocument
+from llama_index.core.schema import Document
 
 # === CONFIGURAÇÃO ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -26,7 +25,7 @@ full_text = read_txt_file(TRANSCRIPTION_FILE)
 # === DIVIDIR EM CHUNKS ===
 print("✂️ Dividindo em trechos...")
 parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
-nodes = parser.build_from_text(full_text)
+nodes = parser.get_nodes_from_documents([Document(text=full_text)])
 
 # === EMBEDDINGS ===
 print("🧠 Gerando embeddings com OpenAI...")
@@ -35,8 +34,8 @@ Settings.embed_model = OpenAIEmbedding(
     api_key=OPENAI_API_KEY,
 )
 
-# === CRIAR DOCUMENTOS E INDEX ===
-documents = [LlamaDocument(text=node.text) for node in nodes]
+# === CRIAR DOCUMENTOS E ÍNDICE ===
+documents = [Document(text=node.text) for node in nodes]
 index = VectorStoreIndex.from_documents(documents)
 
 # === SALVAR O ÍNDICE ===

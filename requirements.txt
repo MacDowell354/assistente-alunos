@@ -1,7 +1,9 @@
 llama-index==0.10.42
 openai>=0.27.0
-python-dotenv
+httpx==0.23.3
 fastapi
 uvicorn
+python-multipart
+python-dotenv
 jinja2
 tiktoken>=0.5.1

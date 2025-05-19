@@ -1,8 +1,7 @@
 import os
-import openai
+from openai import OpenAI
 
-# Criação do cliente com a nova sintaxe
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def generate_answer(question, context, model="gpt-3.5-turbo"):
     response = client.chat.completions.create(

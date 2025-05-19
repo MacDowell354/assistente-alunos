@@ -1,7 +1,10 @@
 import os
-from llama_index import VectorStoreIndex, SimpleDirectoryReader, Document, ServiceContext, load_index_from_storage
+from llama_index.core import SimpleDirectoryReader, Document, ServiceContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.vector_stores import SimpleVectorStore
+from llama_index.core.storage import StorageContext
+from llama_index.core.indices.vector_store import VectorStoreIndex
 
 # === CONFIGURAÇÕES ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -37,12 +40,10 @@ embed_model = OpenAIEmbedding(
 service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
 # === CRIAR O ÍNDICE ===
-documents = [Document(text=node.text) for node in nodes]
-index = VectorStoreIndex.from_documents(documents, service_context=service_context)
+index = VectorStoreIndex(nodes, service_context=service_context)
 
 # === SALVAR O ÍNDICE ===
 print(f"💾 Salvando índice em: {OUTPUT_DIR}")
 index.storage_context.persist(persist_dir=OUTPUT_DIR)
 
 print("✅ Índice gerado com sucesso!")
-

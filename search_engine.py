@@ -1,8 +1,7 @@
 import os
-from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
+from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
-
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,18 +33,15 @@ async def home(request: Request):
 
 # === RESPOSTA GPT ===
 @app.post("/ask", response_class=HTMLResponse)
-async def ask(request: Request):
-    form = await request.form()
-    question = form.get("question")
-
+async def ask(request: Request, question: str = Form(...)):
     try:
         query_engine = index.as_query_engine()
         response = query_engine.query(question)
         answer = str(response)
-    except Exception as e:
+    except Exception:
         answer = "Desculpe, houve um erro ao gerar a resposta."
 
     return templates.TemplateResponse(
         "response.html",
-        {"request": request, "question": question, "answer": answer}
+        {"request": request, "question": question, "answer": answer},
     )

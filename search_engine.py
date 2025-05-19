@@ -1,20 +1,20 @@
 import os
-from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
+from llama_index.core import load_index_from_storage, StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-# === CONFIG ===
+# === CONFIGURAÇÃO ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# === EMBEDDING SETTINGS ===
+# === EMBEDDINGS ===
 Settings.embed_model = OpenAIEmbedding(
     model="text-embedding-3-small",
-    api_key=OPENAI_API_KEY,
+    api_key=OPENAI_API_KEY
 )
 
 # === LOAD INDEX ===
@@ -44,7 +44,8 @@ async def ask(request: Request):
     except Exception as e:
         answer = "Desculpe, houve um erro ao gerar a resposta."
 
-    return templates.TemplateResponse(
-        "response.html",
-        {"request": request, "question": question, "answer": answer}
-    )
+    return templates.TemplateResponse("response.html", {
+        "request": request,
+        "question": question,
+        "answer": answer
+    })

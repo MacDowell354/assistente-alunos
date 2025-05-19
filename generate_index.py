@@ -1,8 +1,7 @@
 import os
 from llama_index.core import SimpleDirectoryReader, Document, ServiceContext
-from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.vector_stores import SimpleVectorStore
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.storage import StorageContext
 from llama_index.core.indices.vector_store import VectorStoreIndex
 
@@ -15,7 +14,7 @@ OUTPUT_DIR = "storage"
 if not OPENAI_API_KEY:
     raise ValueError("A variável de ambiente OPENAI_API_KEY não está definida.")
 
-# === FUNÇÃO PARA LER O .TXT ===
+# === LER .TXT ===
 def read_txt_file(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"O arquivo {file_path} não foi encontrado.")
@@ -26,24 +25,19 @@ def read_txt_file(file_path):
 print("📄 Lendo conteúdo do arquivo...")
 full_text = read_txt_file(TRANSCRIPTION_FILE)
 
-# === DIVIDIR EM CHUNKS ===
+# === DIVIDIR EM TRECHOS ===
 print("✂️ Dividindo em trechos...")
 parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
 nodes = parser.get_nodes_from_documents([Document(text=full_text)])
 
 # === EMBEDDINGS ===
 print("🧠 Gerando embeddings com OpenAI...")
-embed_model = OpenAIEmbedding(
-    model="text-embedding-3-small",
-    api_key=OPENAI_API_KEY
-)
+embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
 service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-# === CRIAR O ÍNDICE ===
+# === CRIAR E SALVAR O ÍNDICE ===
+print("💾 Salvando índice em:", OUTPUT_DIR)
 index = VectorStoreIndex(nodes, service_context=service_context)
-
-# === SALVAR O ÍNDICE ===
-print(f"💾 Salvando índice em: {OUTPUT_DIR}")
 index.storage_context.persist(persist_dir=OUTPUT_DIR)
 
 print("✅ Índice gerado com sucesso!")

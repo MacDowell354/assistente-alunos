@@ -4,8 +4,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.settings import Settings
 from llama_index.core.storage import StorageContext
-from llama_index.core.indices.vector_store import load_index_from_storage
-
+from llama_index.core import load_index_from_storage
 from openai import OpenAI
 
 # CONFIG

@@ -2,7 +2,8 @@ import os
 from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
-from fastapi import FastAPI, Request
+
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates

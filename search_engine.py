@@ -1,6 +1,8 @@
 import os
 from llama_index.core import StorageContext, load_index_from_storage
+from llama_index.core.settings import Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,11 +13,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
 # === EMBEDDING SETTINGS ===
-from llama_index.core import Settings
 Settings.embed_model = OpenAIEmbedding(
     model="text-embedding-3-small",
     api_key=OPENAI_API_KEY,
 )
+Settings.llm = OpenAI(model="gpt-3.5-turbo", api_key=OPENAI_API_KEY)
 
 # === LOAD INDEX ===
 storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
@@ -31,7 +33,7 @@ templates = Jinja2Templates(directory="templates")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# === GPT RESPONSE ===
+# === RESPOSTA GPT ===
 @app.post("/ask", response_class=HTMLResponse)
 async def ask(request: Request):
     form = await request.form()

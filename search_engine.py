@@ -28,3 +28,4 @@ def retrieve_relevant_context(question: str) -> str:
     response = query_engine.query(question)
     # Converte para string e devolve
     return str(response)
+#Atualiza search_engine.py e adiciona retrieve_relevant_context

@@ -1,24 +1,27 @@
 import os
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index import VectorStoreIndex, SimpleDirectoryReader, Document, ServiceContext, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import Document
-from llama_index.core.storage import StorageContext
-from llama_index.core.index import load_index_from_storage
-from llama_index.core.service_context import ServiceContext
+from llama_index.core.node_parser import SentenceSplitter
 
-# === CONFIG ===
+# === CONFIGURAÇÕES ===
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TRANSCRIPTION_FILE = "transcricoes.txt"
 OUTPUT_DIR = "storage"
 
+# === VERIFICA A CHAVE ===
 if not OPENAI_API_KEY:
     raise ValueError("A variável de ambiente OPENAI_API_KEY não está definida.")
 
-# === LER TRANSCRIÇÃO ===
+# === FUNÇÃO PARA LER O .TXT ===
+def read_txt_file(file_path):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"O arquivo {file_path} não foi encontrado.")
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+# === LER A TRANSCRIÇÃO ===
 print("📄 Lendo conteúdo do arquivo...")
-with open(TRANSCRIPTION_FILE, "r", encoding="utf-8") as f:
-    full_text = f.read()
+full_text = read_txt_file(TRANSCRIPTION_FILE)
 
 # === DIVIDIR EM CHUNKS ===
 print("✂️ Dividindo em trechos...")
@@ -27,13 +30,19 @@ nodes = parser.get_nodes_from_documents([Document(text=full_text)])
 
 # === EMBEDDINGS ===
 print("🧠 Gerando embeddings com OpenAI...")
-embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+embed_model = OpenAIEmbedding(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY
+)
 service_context = ServiceContext.from_defaults(embed_model=embed_model)
 
-# === CRIAR E SALVAR O ÍNDICE ===
-print("💾 Salvando índice em:", OUTPUT_DIR)
-index = VectorStoreIndex(nodes, service_context=service_context)
-storage_context = index.storage_context
-storage_context.persist(persist_dir=OUTPUT_DIR)
+# === CRIAR O ÍNDICE ===
+documents = [Document(text=node.text) for node in nodes]
+index = VectorStoreIndex.from_documents(documents, service_context=service_context)
+
+# === SALVAR O ÍNDICE ===
+print(f"💾 Salvando índice em: {OUTPUT_DIR}")
+index.storage_context.persist(persist_dir=OUTPUT_DIR)
 
 print("✅ Índice gerado com sucesso!")
+

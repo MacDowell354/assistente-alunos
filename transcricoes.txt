@@ -922,4 +922,5 @@ Hoje, após ter criado o primeiro e pioneiro conceito de Consultório High Ticke
 Quando houver uma pergunta sobre o assunto responder:
 Paciente de alto valor é igual a Paciente High Ticket
 Plano de saúde é igual a Heath Plan
+Os estudantes são os profissionais da saúde
 

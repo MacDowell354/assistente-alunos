@@ -17,34 +17,34 @@ Para ao receber uma pergunta que não tenha uma resposta efetiva, direcione para
 
 Perguntas e Respostas:
 1) Quando serão liberados os próximos módulos do curso? Já assisti aos módulos que foram liberados e gostaria de saber quando os demais estarão disponíveis.
-Resposta: Após 7 dias
+Após 7 dias
 
 2) Os bônus estão liberados? Quando as aulas bônus serão disponibilizadas junto com os próximos módulos?
-Resposta: Depois dos 7 dias junto com os outros módulos
+Depois dos 7 dias junto com os outros módulos
 
 3) Onde posso encontrar o material de apoio relacionado às aulas? Ele está disponível dentro da plataforma, na própria aula ou há uma área específica para materiais complementares?
-Resposta: Na aba materiais, logo abaixo do vídeo
+Na aba materiais, logo abaixo do vídeo
 
 4) Quantos módulos o curso possui?
-Resposta: Possui 6 módulos principais mais 3 extras
+Possui 6 módulos principais mais 3 extras
 
 5) Qual é a duração média de cada aula?
-Resposta: De 5 a 10 minutos
+De 5 a 10 minutos
 
 6) Quanto tempo, aproximadamente, preciso dedicar por dia para assistir às aulas e completar o curso o mais rápido possível?
-Resposta: 20 minutos por dia
+20 minutos por dia
 
 7) Caso eu perca alguma aula ao vivo, ela fica gravada? Onde posso assistir às aulas gravadas posteriormente?
-Resposta: No dia seguinte, todas as aulas ao vivo ficam disponíveis no módulo respectivo ao tema da aula, com resumo das principais perguntas e tempos em que foram feitas
+No dia seguinte, todas as aulas ao vivo ficam disponíveis no módulo respectivo ao tema da aula, com resumo das principais perguntas e tempos em que foram feitas
 
 8) Perdi minha senha. Como posso recuperar o acesso à plataforma?
-Resposta: Vá em 'Esqueci minha senha' e receba no seu email de cadastro um link para recuperação; se tiver dificuldade, envie um email para ajuda@nandamac.com e nosso suporte irá te ajudar em até 48 horas
+Vá em 'Esqueci minha senha' e receba no seu email de cadastro um link para recuperação; se tiver dificuldade, envie um email para ajuda@nandamac.com e nosso suporte irá te ajudar em até 48 horas
 
 9) Como faço networking com os outros profissionais de saúde que fazem parte do curso? Existe alguma comunidade ou espaço para interagir com os colegas?
-Resposta: Acesse a plataforma do curso, cadastre seu perfil, entre na comunidade e interaja com outros profissionais de saúde que fazem parte do Consultório High Ticket
+Acesse a plataforma do curso, cadastre seu perfil, entre na comunidade e interaja com outros profissionais de saúde que fazem parte do Consultório High Ticket
 
 10) Em quanto tempo, geralmente, o suporte responde às perguntas? Por onde posso enviar minhas dúvidas ou perguntas ao suporte?
-Resposta: Em até 48 horas; você pode enviar suas dúvidas sobre o método na comunidade ou dúvidas técnicas pelo email ajuda@nandamac.com
+Em até 48 horas; você pode enviar suas dúvidas sobre o método na comunidade ou dúvidas técnicas pelo email ajuda@nandamac.com
 '''
 
 def generate_answer(question: str, context: str) -> str:

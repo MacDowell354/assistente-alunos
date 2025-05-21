@@ -51,6 +51,7 @@
   </style>
 </head>
 <body>
+
   <div id="loadingOverlay">
     <div>
       <svg width="50" height="50" viewBox="0 0 100 100" fill="none"
@@ -66,11 +67,13 @@
       <p>Aguarde, a Nanda Mac.AI está pensando...</p>
     </div>
   </div>
+
   <div class="container">
-    <h1>💡 Bem-vinda ao Nanda Mac.AI</h1>
+    <h1>💡 Bem-vindo(a) ao Nanda Mac.AI</h1>
     <p class="subtitle">
-      Disponível 24h para esclarecer suas dúvidas sobre o Consultório High Ticket com a Nanda Mac.AI.
+      Seu suporte exclusivo 24h para o Curso Consultório High Ticket, pela Nanda Mac.AI.
     </p>
+
     <form id="askForm" action="/ask" method="post">
       <textarea id="question" name="question"
         placeholder="Digite sua dúvida sobre o curso – a Nanda Mac.AI responde"
@@ -81,16 +84,19 @@
       </p>
     </form>
   </div>
+
   <div id="response" style="display: none;">
     <h2>💬 Resposta da Nanda Mac.AI</h2>
     <div id="responseText"></div>
     <a href="/">Fazer nova pergunta à Nanda Mac.AI</a>
   </div>
+
   <script>
     const form = document.getElementById('askForm');
     const questionInput = document.getElementById('question');
     const errorMessage = document.getElementById('errorMessage');
     const loadingOverlay = document.getElementById('loadingOverlay');
+
     form.addEventListener('submit', async e => {
       e.preventDefault();
       if (!questionInput.value.trim()) {
@@ -101,6 +107,7 @@
       errorMessage.style.display = 'none';
       loadingOverlay.classList.add('visible');
       form.querySelector('button[type="submit"]').disabled = true;
+
       try {
         const res = await fetch(form.action, {
           method: form.method,
@@ -115,5 +122,6 @@
       }
     });
   </script>
+
 </body>
 </html>

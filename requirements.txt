@@ -7,3 +7,7 @@ python-multipart
 python-dotenv
 jinja2
 tiktoken>=0.5.1
+
+# Autenticação JWT
+python-jose>=3.3.0
+passlib[bcrypt]>=1.7

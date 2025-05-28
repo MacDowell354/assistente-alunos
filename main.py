@@ -23,26 +23,24 @@ ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Usuário fixo "aluno1" com senha forte N4nd@M4c#2025
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
-
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_ctx.verify(plain, hashed)
-
 
 def authenticate_user(username: str, password: str) -> str | None:
     if username in fake_users and verify_password(password, fake_users[username]):
         return username
     return None
 
-
 def create_access_token(username: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_EXPIRE)
     to_encode = {"sub": username, "exp": expire}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
 
 def get_current_user(request: Request) -> str:
     token = request.cookies.get("access_token")
@@ -57,31 +55,30 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-
 # --- Exception Handler: 401 → /login + flash message ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        resp = RedirectResponse(url="/login")
-        # use hífen (-), não “—”
+        resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        # Cookie temporário para exibir alerta no login
         resp.set_cookie(
-            key="login_msg",
-            value="Sessão expirada - faça login novamente.",
-            max_age=5,        # dura 5s
-            httponly=True
+            "login_msg",
+            "Sessão expirada - faça login novamente.",
+            max_age=5
         )
         return resp
     raise exc
 
-
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # limpa o flash-message
-    resp = templates.TemplateResponse("login.html", {"request": request})
+    login_msg = request.cookies.get("login_msg")
+    resp = templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": None, "login_msg": login_msg}
+    )
     resp.delete_cookie("login_msg")
     return resp
-
 
 @app.post("/login")
 async def login(
@@ -94,25 +91,23 @@ async def login(
     if not user:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Usuário ou senha inválidos."},
+            {"request": request, "error": "Usuário ou senha inválidos.", "login_msg": None},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     resp.set_cookie(
-        key="access_token",
-        value=token,
+        "access_token",
+        token,
         httponly=True,
         max_age=ACCESS_EXPIRE * 60
     )
     return resp
 
-
 # --- Protected Routes ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-
 
 @app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def ask_question(request: Request, question: str = Form(...)):

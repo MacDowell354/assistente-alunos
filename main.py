@@ -21,10 +21,9 @@ templates = Jinja2Templates(directory="templates")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
-COOKIE_DOMAIN = "ia.nandamac.com"  # ajuste se precisar
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# Hash gerado para aluno1 / senha N4nd@M4c#2025
+# Hash gerado em cada startup — para aluno1 / senha N4nd@M4c#2025
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -60,11 +59,11 @@ def get_current_user(request: Request) -> str:
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
+        # cookie de aviso temporário
         resp.set_cookie(
             "login_msg",
             "Sessão expirada — faça login novamente.",
             max_age=5,
-            domain=COOKIE_DOMAIN,
             secure=True,
             httponly=True,
             samesite="none",
@@ -75,12 +74,13 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # renderiza login e apaga flash
+    error = request.cookies.get("login_msg")
     resp = templates.TemplateResponse("login.html", {
         "request": request,
-        "error": request.cookies.get("login_msg")  # mostra flash se existir
+        "error": error
     })
-    resp.delete_cookie("login_msg", domain=COOKIE_DOMAIN)
+    # limpa o flash
+    resp.delete_cookie("login_msg")
     return resp
 
 @app.post("/login")
@@ -101,7 +101,6 @@ async def login(
     resp.set_cookie(
         "access_token",
         token,
-        domain=COOKIE_DOMAIN,
         httponly=True,
         secure=True,
         samesite="none",

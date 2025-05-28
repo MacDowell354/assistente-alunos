@@ -28,7 +28,7 @@ ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Exemplo de usuário fixo; depois pode migrar para um DB real
 fake_users = {
-    "aluno1": pwd_ctx.hash("senha123")
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
 def verify_password(plain: str, hashed: str) -> bool:

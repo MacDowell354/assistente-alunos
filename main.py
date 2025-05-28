@@ -21,9 +21,10 @@ templates = Jinja2Templates(directory="templates")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+COOKIE_DOMAIN = "ia.nandamac.com"  # ajuste se precisar
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# usuário fixo com a nova senha forte
+# Hash gerado para aluno1 / senha N4nd@M4c#2025
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -59,15 +60,14 @@ def get_current_user(request: Request) -> str:
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # flash-message em ASCII puro para evitar erros no Latin-1
         resp.set_cookie(
             "login_msg",
-            "Sessao expirada - faca login novamente.",
+            "Sessão expirada — faça login novamente.",
             max_age=5,
+            domain=COOKIE_DOMAIN,
             secure=True,
-            samesite="None",
-            domain="ia.nandamac.com",
-            path="/"
+            httponly=True,
+            samesite="none",
         )
         return resp
     raise exc
@@ -75,27 +75,25 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # lê a flash-message e já apaga o cookie
-    login_msg = request.cookies.get("login_msg")
+    # renderiza login e apaga flash
     resp = templates.TemplateResponse("login.html", {
         "request": request,
-        "error": login_msg  # se existir, será exibida acima do form
+        "error": request.cookies.get("login_msg")  # mostra flash se existir
     })
-    resp.delete_cookie("login_msg", domain="ia.nandamac.com", path="/")
+    resp.delete_cookie("login_msg", domain=COOKIE_DOMAIN)
     return resp
 
 @app.post("/login")
 async def login(
     request: Request,
-    response: Response,
     username: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
 ):
     user = authenticate_user(username, password)
     if not user:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Usuario ou senha invalidos."},
+            {"request": request, "error": "Usuário ou senha inválidos."},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
     token = create_access_token(user)
@@ -103,12 +101,11 @@ async def login(
     resp.set_cookie(
         "access_token",
         token,
+        domain=COOKIE_DOMAIN,
         httponly=True,
-        max_age=ACCESS_EXPIRE * 60,
         secure=True,
-        samesite="None",
-        domain="ia.nandamac.com",
-        path="/"
+        samesite="none",
+        max_age=ACCESS_EXPIRE * 60
     )
     return resp
 

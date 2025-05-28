@@ -20,13 +20,14 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- JWT / Auth config ---
+# --- JWT / Auth Config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("A variável SECRET_KEY não está definida!")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# senha agora segura que você pediu
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -57,12 +58,11 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login com flash msg ---
+# --- Exception Handler: 401 → /login + flash message ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        # cookie temporário para exibir alerta no login
         resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
         return resp
     raise exc
@@ -70,11 +70,10 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Rotas de Login ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # lê e apaga o flash message
-    msg = request.cookies.get("login_msg")
+    flash = request.cookies.get("login_msg")
     resp = templates.TemplateResponse("login.html", {
         "request": request,
-        "error": msg  # se houver, vai mostrar no template
+        "error": flash
     })
     resp.delete_cookie("login_msg")
     return resp
@@ -114,7 +113,7 @@ async def logout():
 async def home(request: Request, user: str = Depends(get_current_user)):
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "user": user   # assim você pode usar {{ user }} no template
+        "user": user
     })
 
 @app.post("/ask", response_class=HTMLResponse)

@@ -23,8 +23,10 @@ ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Atualiza aqui para a nova senha do aluno1:
 fake_users = {
-    "aluno1": pwd_ctx.hash("senha123")
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -60,8 +62,8 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
         resp.set_cookie(
             "login_msg",
-            "Sessão expirada - faça login novamente.",
-            max_age=5
+            "Sessão expirada – faça login novamente.",
+            max_age=5,
         )
         return resp
     raise exc
@@ -69,9 +71,13 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # Pega a mensagem (se houver) e exibe na tela
+    # Pega a mensagem de sessão expirada (se existir)
     msg = request.cookies.get("login_msg")
-    resp = templates.TemplateResponse("login.html", {"request": request, "error": msg})
+    resp = templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": msg}
+    )
+    # limpa o cookie de flash
     resp.delete_cookie("login_msg")
     return resp
 

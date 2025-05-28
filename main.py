@@ -24,7 +24,7 @@ ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    "aluno1": pwd_ctx.hash("senha123")
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
 

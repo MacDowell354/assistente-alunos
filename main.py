@@ -1,10 +1,7 @@
 import os
 from datetime import datetime, timedelta
 
-from fastapi import (
-    FastAPI, Form, Depends, HTTPException,
-    status, Request, Response
-)
+from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,14 +19,13 @@ templates = Jinja2Templates(directory="templates")
 
 # --- JWT / Auth Config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("A variável SECRET_KEY não está definida!")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
+    # usuário fixo
+    "aluno1": pwd_ctx.hash("senha123")
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -62,19 +58,21 @@ def get_current_user(request: Request) -> str:
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        # redireciona para /login e coloca cookie de aviso
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
+        resp.set_cookie(
+            "login_msg",
+            "Sessão expirada - faça login novamente.",
+            max_age=5
+        )
         return resp
     raise exc
 
-# --- Rotas de Login ---
+# --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    flash = request.cookies.get("login_msg")
-    resp = templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": flash
-    })
+    # limpa o cookie de login_msg antes de renderizar
+    resp = templates.TemplateResponse("login.html", {"request": request})
     resp.delete_cookie("login_msg")
     return resp
 
@@ -102,30 +100,16 @@ async def login(
     )
     return resp
 
-@app.get("/logout")
-async def logout():
-    resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    resp.delete_cookie("access_token")
-    return resp
+# --- Protected Routes ---
+@app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-# --- Rotas Protegidas ---
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request, user: str = Depends(get_current_user)):
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "user": user
-    })
-
-@app.post("/ask", response_class=HTMLResponse)
-async def ask_question(
-    request: Request,
-    question: str = Form(...),
-    user: str = Depends(get_current_user)
-):
+@app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
+async def ask_question(request: Request, question: str = Form(...)):
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
-    return templates.TemplateResponse("response.html", {
-        "request": request,
-        "question": question,
-        "answer": answer
-    })
+    return templates.TemplateResponse(
+        "response.html",
+        {"request": request, "question": question, "answer": answer}
+    )

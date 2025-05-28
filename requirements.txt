@@ -1,5 +1,8 @@
-bcrypt>=3.2.0
+# bcrypt compatível com passlib
+bcrypt==3.2.2
 passlib[bcrypt]>=1.7.4
+
+# JWT
 python-jose[cryptography]>=3.3.0
 
 fastapi

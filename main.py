@@ -24,7 +24,6 @@ ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    # usuário fixo
     "aluno1": pwd_ctx.hash("senha123")
 }
 
@@ -58,7 +57,6 @@ def get_current_user(request: Request) -> str:
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        # redireciona para /login e coloca cookie de aviso
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
         resp.set_cookie(
             "login_msg",
@@ -71,8 +69,9 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # limpa o cookie de login_msg antes de renderizar
-    resp = templates.TemplateResponse("login.html", {"request": request})
+    # Pega a mensagem (se houver) e exibe na tela
+    msg = request.cookies.get("login_msg")
+    resp = templates.TemplateResponse("login.html", {"request": request, "error": msg})
     resp.delete_cookie("login_msg")
     return resp
 
@@ -100,13 +99,17 @@ async def login(
     )
     return resp
 
-# --- Protected Routes ---
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def home(request: Request):
+# --- Rotas Protegidas ---
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request, current_user: str = Depends(get_current_user)):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def ask_question(request: Request, question: str = Form(...)):
+@app.post("/ask", response_class=HTMLResponse)
+async def ask_question(
+    request: Request,
+    question: str = Form(...),
+    current_user: str = Depends(get_current_user)
+):
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
     return templates.TemplateResponse(

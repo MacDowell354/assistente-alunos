@@ -12,12 +12,12 @@ from jose import jwt, JWTError
 from gpt_utils import generate_answer
 from search_engine import retrieve_relevant_context
 
-# --- App & templates ---
+# --- App & Templates ---
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- JWT / Auth config ---
+# --- JWT / Auth Config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
@@ -53,17 +53,23 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# Redirect 401 → login
+# --- Exception Handler: 401 → /login + flash message ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        return RedirectResponse(url="/login")
+        resp = RedirectResponse(url="/login")
+        # Cookie temporário para exibir alerta no login
+        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
+        return resp
     raise exc
 
-# --- Rotas de Login ---
+# --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    # limpa o cookie de flash message
+    resp = templates.TemplateResponse("login.html", {"request": request})
+    resp.delete_cookie("login_msg")
+    return resp
 
 @app.post("/login")
 async def login(
@@ -89,7 +95,7 @@ async def login(
     )
     return resp
 
-# --- Rotas Protegidas ---
+# --- Protected Routes ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})

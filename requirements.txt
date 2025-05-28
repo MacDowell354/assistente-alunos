@@ -1,15 +1,14 @@
 bcrypt>=3.2.0
 passlib[bcrypt]>=1.7.4
-llama-index==0.10.42
-openai>=0.27.0
-httpx==0.23.3
+python-jose[cryptography]>=3.3.0
+
 fastapi
+httpx==0.23.3
 uvicorn
 python-multipart
 python-dotenv
 jinja2
 tiktoken>=0.5.1
 
-# Autenticação JWT
-python-jose>=3.3.0
-passlib[bcrypt]>=1.7
+llama-index==0.10.42
+openai>=0.27.0

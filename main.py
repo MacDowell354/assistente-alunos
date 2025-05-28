@@ -23,7 +23,7 @@ ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# aqui definimos o usuário e a nova senha forte
+# usuário fixo com a nova senha forte
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -59,10 +59,10 @@ def get_current_user(request: Request) -> str:
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # mensagem temporária de sessão expirada
+        # flash-message em ASCII puro para evitar erros no Latin-1
         resp.set_cookie(
             "login_msg",
-            "Sessão expirada — faça login novamente.",
+            "Sessao expirada - faca login novamente.",
             max_age=5,
             secure=True,
             samesite="None",
@@ -75,11 +75,11 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # captura e exibe a flash msg, depois apaga o cookie
+    # lê a flash-message e já apaga o cookie
     login_msg = request.cookies.get("login_msg")
     resp = templates.TemplateResponse("login.html", {
         "request": request,
-        "error": login_msg  # se veio flash msg, cai aqui
+        "error": login_msg  # se existir, será exibida acima do form
     })
     resp.delete_cookie("login_msg", domain="ia.nandamac.com", path="/")
     return resp
@@ -93,15 +93,13 @@ async def login(
 ):
     user = authenticate_user(username, password)
     if not user:
-        # volta pra tela de login com erro
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Usuário ou senha inválidos."},
+            {"request": request, "error": "Usuario ou senha invalidos."},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    # aqui criamos o cookie de sessão com Secure+SameSite=None
     resp.set_cookie(
         "access_token",
         token,
@@ -114,7 +112,7 @@ async def login(
     )
     return resp
 
-# --- Rotas Protegidas ---
+# --- Protected Routes ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})

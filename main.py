@@ -23,7 +23,6 @@ ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# usuário fixo com senha forte
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -54,34 +53,40 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login + flash cookie ---
+# --- Exception Handler: 401 → /login + flash ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        # use hífen ASCII simples aqui
-        resp.set_cookie(
-            "login_msg",
-            "Sessão expirada - faça login novamente.",
-            max_age=5,
-            httponly=True,
-        )
-        return resp
+        # só dispara o flash se quem pediu não for já /login
+        if request.url.path != "/login":
+            resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+            resp.set_cookie(
+                "flash",
+                "Sessão expirada – faça login novamente.",
+                max_age=5,
+                httponly=True,
+            )
+            return resp
+    # para outros erros ou se já estivermos em /login, repassa
     raise exc
 
-# --- Rotas de Login ---
+# --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    msg = request.cookies.get("login_msg")
-    # renderiza login.html passando msg como erro
+    flash_msg = request.cookies.get("flash")
     resp = templates.TemplateResponse(
         "login.html",
-        {"request": request, "error": msg}
+        {
+            "request": request,
+            "flash": flash_msg,
+            "error": None
+        }
     )
-    resp.delete_cookie("login_msg")
+    # limpa o cookie de flash
+    resp.delete_cookie("flash")
     return resp
 
-@app.post("/login")
+@app.post("/login", response_class=HTMLResponse)
 async def login(
     request: Request,
     response: Response,
@@ -92,17 +97,12 @@ async def login(
     if not user:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Usuário ou senha inválidos."},
+            {"request": request, "flash": None, "error": "Usuário ou senha inválidos."},
             status_code=status.HTTP_401_UNAUTHORIZED
         )
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(
-        "access_token",
-        token,
-        httponly=True,
-        max_age=ACCESS_EXPIRE * 60
-    )
+    resp.set_cookie("access_token", token, httponly=True, max_age=ACCESS_EXPIRE * 60)
     return resp
 
 # --- Rotas Protegidas ---

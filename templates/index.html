@@ -26,6 +26,16 @@
     }
     h1 { text-align: center; margin-bottom: 10px; }
     p.subtitle { text-align: center; margin-bottom: 30px; color: #555; }
+    #chatHistory {
+      max-width: 600px;
+      margin: 20px auto 30px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fafafa;
+      max-height: 300px;
+      overflow-y: auto;
+    }
     textarea {
       width: 100%; padding: 10px; font-size: 1rem;
       border: 1px solid #ccc; border-radius: 4px; resize: vertical;
@@ -38,16 +48,6 @@
     }
     button:disabled { background-color: #999; cursor: not-allowed; }
     #errorMessage { color: red; display: none; margin-top: 10px; }
-    #response {
-      max-width: 600px; margin: 20px auto; padding: 20px;
-      border: 1px solid #ddd; border-radius: 4px;
-      background-color: #f9f9f9; font-family: Arial, sans-serif; color: #333;
-    }
-    #response h2 { margin-top: 0; }
-    #response a {
-      display: inline-block; margin-top: 15px;
-      text-decoration: none; color: #005fa3;
-    }
   </style>
 </head>
 <body>
@@ -69,26 +69,20 @@
   </div>
 
   <div class="container">
-    <h1>💡 Bem-vindo(a) a IA.Nanda Mac</h1>
+    <h1>💡 Bem-vindo(a) à IA.Nanda Mac</h1>
     <p class="subtitle">
       Seu suporte exclusivo 24h para o Curso Consultório High Ticket, pela IA.Nanda Mac.
     </p>
 
-    <form id="askForm" action="/ask" method="post">
+    <div id="chatHistory"></div>
+
+    <form id="askForm">
       <textarea id="question" name="question"
         placeholder="Digite sua dúvida sobre o curso – a IA.Nanda Mac responde"
         rows="4"></textarea>
       <button type="submit">Perguntar à IA.Nanda Mac</button>
-      <p id="errorMessage">
-        Por favor, escreva sua dúvida para a IA.Nanda Mac responder.
-      </p>
+      <p id="errorMessage">Por favor, escreva sua dúvida para a IA.Nanda Mac responder.</p>
     </form>
-  </div>
-
-  <div id="response" style="display: none;">
-    <h2>💬 Resposta da IA.Nanda Mac</h2>
-    <div id="responseText"></div>
-    <a href="/">Fazer nova pergunta à IA.Nanda Mac</a>
   </div>
 
   <script>
@@ -96,30 +90,53 @@
     const questionInput = document.getElementById('question');
     const errorMessage = document.getElementById('errorMessage');
     const loadingOverlay = document.getElementById('loadingOverlay');
+    const chatHistory = document.getElementById('chatHistory');
+    const submitBtn = form.querySelector('button[type="submit"]');
 
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      if (!questionInput.value.trim()) {
+      const q = questionInput.value.trim();
+      if (!q) {
         errorMessage.style.display = 'block';
-        questionInput.focus();
         return;
       }
       errorMessage.style.display = 'none';
       loadingOverlay.classList.add('visible');
-      form.querySelector('button[type="submit"]').disabled = true;
+      submitBtn.disabled = true;
 
-      try {
-        const res = await fetch(form.action, {
-          method: form.method,
-          body: new FormData(form)
-        });
-        const html = await res.text();
-        document.open();
-        document.write(html);
-        document.close();
-      } catch {
-        alert('Erro ao processar a solicitação.');
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('token')
+        },
+        body: new URLSearchParams({ question: q })
+      });
+
+      loadingOverlay.classList.remove('visible');
+      submitBtn.disabled = false;
+
+      if (!res.ok) {
+        alert('Erro ao enviar a pergunta.');
+        return;
       }
+
+      const { question, answer } = await res.json();
+
+      const qEl = document.createElement('div');
+      qEl.textContent = 'Você: ' + question;
+      qEl.style.fontWeight = 'bold';
+      chatHistory.appendChild(qEl);
+
+      const aEl = document.createElement('div');
+      aEl.textContent = 'IA.Nanda Mac: ' + answer;
+      aEl.style.marginBottom = '1.5rem';
+      chatHistory.appendChild(aEl);
+
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+      questionInput.value = '';
+      questionInput.focus();
     });
   </script>
 

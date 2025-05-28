@@ -27,18 +27,22 @@ fake_users = {
     "aluno1": pwd_ctx.hash("senha123")
 }
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_ctx.verify(plain, hashed)
+
 
 def authenticate_user(username: str, password: str) -> str | None:
     if username in fake_users and verify_password(password, fake_users[username]):
         return username
     return None
 
+
 def create_access_token(username: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_EXPIRE)
     to_encode = {"sub": username, "exp": expire}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def get_current_user(request: Request) -> str:
     token = request.cookies.get("access_token")
@@ -53,23 +57,31 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
+
 # --- Exception Handler: 401 → /login + flash message ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # Cookie temporário para exibir alerta no login
-        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
+        # use hífen (-), não “—”
+        resp.set_cookie(
+            key="login_msg",
+            value="Sessão expirada - faça login novamente.",
+            max_age=5,        # dura 5s
+            httponly=True
+        )
         return resp
     raise exc
+
 
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # limpa o cookie de flash message
+    # limpa o flash-message
     resp = templates.TemplateResponse("login.html", {"request": request})
     resp.delete_cookie("login_msg")
     return resp
+
 
 @app.post("/login")
 async def login(
@@ -88,17 +100,19 @@ async def login(
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
     resp.set_cookie(
-        "access_token",
-        token,
+        key="access_token",
+        value=token,
         httponly=True,
         max_age=ACCESS_EXPIRE * 60
     )
     return resp
 
+
 # --- Protected Routes ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def ask_question(request: Request, question: str = Form(...)):

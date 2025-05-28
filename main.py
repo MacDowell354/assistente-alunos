@@ -23,8 +23,7 @@ ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Atualiza aqui para a nova senha do aluno1:
+# usuário fixo com senha forte
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -55,29 +54,30 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login + flash message ---
+# --- Exception Handler: 401 → /login + flash cookie ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        # use hífen ASCII simples aqui
         resp.set_cookie(
             "login_msg",
-            "Sessão expirada – faça login novamente.",
+            "Sessão expirada - faça login novamente.",
             max_age=5,
+            httponly=True,
         )
         return resp
     raise exc
 
-# --- Login Routes ---
+# --- Rotas de Login ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    # Pega a mensagem de sessão expirada (se existir)
     msg = request.cookies.get("login_msg")
+    # renderiza login.html passando msg como erro
     resp = templates.TemplateResponse(
         "login.html",
         {"request": request, "error": msg}
     )
-    # limpa o cookie de flash
     resp.delete_cookie("login_msg")
     return resp
 

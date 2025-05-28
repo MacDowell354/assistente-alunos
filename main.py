@@ -24,7 +24,7 @@ ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Usuário fixo "aluno1" com senha forte N4nd@M4c#2025
+# Usuário fixo "aluno1" com a nova senha forte
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -60,12 +60,8 @@ def get_current_user(request: Request) -> str:
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        # Cookie temporário para exibir alerta no login
-        resp.set_cookie(
-            "login_msg",
-            "Sessão expirada - faça login novamente.",
-            max_age=5
-        )
+        # flash message simples (apenas hífen)
+        resp.set_cookie("login_msg", "Sessão expirada - faça login novamente.", max_age=5)
         return resp
     raise exc
 
@@ -73,6 +69,7 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
     login_msg = request.cookies.get("login_msg")
+    # renderiza template passando eventual flash message
     resp = templates.TemplateResponse(
         "login.html",
         {"request": request, "error": None, "login_msg": login_msg}
@@ -96,12 +93,7 @@ async def login(
         )
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(
-        "access_token",
-        token,
-        httponly=True,
-        max_age=ACCESS_EXPIRE * 60
-    )
+    resp.set_cookie("access_token", token, httponly=True, max_age=ACCESS_EXPIRE * 60)
     return resp
 
 # --- Protected Routes ---

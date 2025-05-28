@@ -1,7 +1,10 @@
 import os
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
+from fastapi import (
+    FastAPI, Form, Depends, HTTPException,
+    status, Request, Response
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -17,13 +20,13 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- JWT / Auth Config ---
+# --- JWT / Auth config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# Hash gerado em cada startup — para aluno1 / senha N4nd@M4c#2025
+# senha agora segura que você pediu
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
@@ -54,40 +57,34 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login + flash message ---
+# --- Exception Handler: 401 → /login com flash msg ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        resp = RedirectResponse(url="/login")
-        # cookie de aviso temporário
-        resp.set_cookie(
-            "login_msg",
-            "Sessão expirada — faça login novamente.",
-            max_age=5,
-            secure=True,
-            httponly=True,
-            samesite="none",
-        )
+        resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        # cookie temporário para exibir alerta no login
+        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
         return resp
     raise exc
 
-# --- Login Routes ---
+# --- Rotas de Login ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    error = request.cookies.get("login_msg")
+    # lê e apaga o flash message
+    msg = request.cookies.get("login_msg")
     resp = templates.TemplateResponse("login.html", {
         "request": request,
-        "error": error
+        "error": msg  # se houver, vai mostrar no template
     })
-    # limpa o flash
     resp.delete_cookie("login_msg")
     return resp
 
 @app.post("/login")
 async def login(
     request: Request,
+    response: Response,
     username: str = Form(...),
-    password: str = Form(...),
+    password: str = Form(...)
 ):
     user = authenticate_user(username, password)
     if not user:
@@ -102,22 +99,34 @@ async def login(
         "access_token",
         token,
         httponly=True,
-        secure=True,
-        samesite="none",
         max_age=ACCESS_EXPIRE * 60
     )
     return resp
 
-# --- Protected Routes ---
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/logout")
+async def logout():
+    resp = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    resp.delete_cookie("access_token")
+    return resp
 
-@app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def ask_question(request: Request, question: str = Form(...)):
+# --- Rotas Protegidas ---
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request, user: str = Depends(get_current_user)):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "user": user   # assim você pode usar {{ user }} no template
+    })
+
+@app.post("/ask", response_class=HTMLResponse)
+async def ask_question(
+    request: Request,
+    question: str = Form(...),
+    user: str = Depends(get_current_user)
+):
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
-    return templates.TemplateResponse(
-        "response.html",
-        {"request": request, "question": question, "answer": answer}
-    )
+    return templates.TemplateResponse("response.html", {
+        "request": request,
+        "question": question,
+        "answer": answer
+    })

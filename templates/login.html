@@ -20,14 +20,12 @@
   <div class="card shadow p-4" style="max-width:400px; width:100%;">
     <h1 class="h4 mb-4 text-center">🔒 Entrar na IA.Nanda Mac</h1>
 
-    <!-- Flash message (auto apaga após leitura) -->
     {% if flash %}
       <div class="alert alert-warning" role="alert">
         {{ flash }}
       </div>
     {% endif %}
 
-    <!-- Erro de credenciais -->
     {% if error %}
       <div class="alert alert-danger" role="alert">
         {{ error }}

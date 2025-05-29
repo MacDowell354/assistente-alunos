@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
@@ -17,14 +18,14 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- JWT / Auth Config ---
+# --- JWT / Auth config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")   # sua senha forte aqui
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -53,23 +54,20 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login + flash message ---
+# Redirect 401 → login (com flash message)
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # usaremos hífen simples (ASCII) para não estourar Latin-1
-        resp.set_cookie("login_msg", "Sessão expirada - faça login novamente.", max_age=5)
+        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
         return resp
     raise exc
 
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    flash = request.cookies.get("login_msg")
-    context = {"request": request, "flash": flash} if flash else {"request": request}
-    resp = templates.TemplateResponse("login.html", context)
-    # deletar o flash cookie após leitura
+    msg = request.cookies.get("login_msg")
+    resp = templates.TemplateResponse("login.html", {"request": request, "error": msg})
     resp.delete_cookie("login_msg")
     return resp
 
@@ -97,16 +95,21 @@ async def login(
     )
     return resp
 
-# --- Protected Routes ---
+# --- Chat Continuado ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def chat(request: Request):
+    # histórico vazio na primeira visita
+    return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
 @app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def ask_question(request: Request, question: str = Form(...)):
+async def chat_ask(
+    request: Request,
+    question: str = Form(...),
+    history: str = Form(None)
+):
+    # desserializa histórico anterior (se houver)
+    hist = json.loads(history) if history else []
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
-    return templates.TemplateResponse(
-        "response.html",
-        {"request": request, "question": question, "answer": answer}
-    )
+    hist.append({"question": question, "answer": answer})
+    return templates.TemplateResponse("chat.html", {"request": request, "history": hist})

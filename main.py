@@ -18,14 +18,15 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- JWT / Auth config ---
+# --- JWT / Auth Config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")   # sua senha forte aqui
+    # já com a senha forte hashada
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -54,20 +55,25 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# Redirect 401 → login (com flash message)
+# --- Exception Handler: 401 → /login + flash message ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
+        # usamos um hífen ASCII simples para não quebrar a codificação Latin-1
+        resp.set_cookie("login_msg", "Sessão expirada - faça login novamente.", max_age=5)
         return resp
     raise exc
 
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    msg = request.cookies.get("login_msg")
-    resp = templates.TemplateResponse("login.html", {"request": request, "error": msg})
+    # leitura do cookie de flash e logo em seguida remoção
+    login_msg = request.cookies.get("login_msg")
+    resp = templates.TemplateResponse("login.html", {
+        "request": request,
+        "flash": login_msg
+    })
     resp.delete_cookie("login_msg")
     return resp
 
@@ -95,11 +101,13 @@ async def login(
     )
     return resp
 
-# --- Chat Continuado ---
+# --- Chat Encadeado ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def chat(request: Request):
-    # histórico vazio na primeira visita
-    return templates.TemplateResponse("chat.html", {"request": request, "history": []})
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "history": []
+    })
 
 @app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
 async def chat_ask(
@@ -107,9 +115,11 @@ async def chat_ask(
     question: str = Form(...),
     history: str = Form(None)
 ):
-    # desserializa histórico anterior (se houver)
     hist = json.loads(history) if history else []
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context)
     hist.append({"question": question, "answer": answer})
-    return templates.TemplateResponse("chat.html", {"request": request, "history": hist})
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "history": hist
+    })

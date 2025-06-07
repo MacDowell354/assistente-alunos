@@ -1,40 +1,45 @@
+# generate_index.py
 import os
 from llama_index import (
     StorageContext,
-    SimpleDirectoryReader,
+    LLMPredictor,
+    PromptHelper,
+    ServiceContext,
+    Document,
+    load_index_from_storage,
     GPTVectorStoreIndex,
 )
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index import LLMPredictor, ServiceContext, PromptHelper
+from llama_index.llms.openai import OpenAI
+from llama_index.node_parser import SimpleNodeParser
 
-# --- Configurações de Embedding / Modelo ---
-from llama_index.llms import OpenAI
+# Caminhos / Configuração
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+INDEX_DIR = "storage"
+TRANSCRIPT_FILE = "transcricoes.txt"
 
-embed_model = OpenAIEmbedding(
-    model="text-embedding-3-small",
-    api_key=OPENAI_API_KEY,
-)
-llm_predictor = LLMPredictor(
-    llm=OpenAI(model="gpt-3.5-turbo", temperature=0.0, openai_api_key=OPENAI_API_KEY)
-)
-service_context = ServiceContext.from_defaults(
-    llm_predictor=llm_predictor,
-    embed_model=embed_model,
-    prompt_helper=PromptHelper.from_llm_predictor(llm_predictor),
-)
+def build_and_persist_index():
+    # Lê todo o arquivo de transcrições como um único Document
+    with open(TRANSCRIPT_FILE, "r", encoding="utf-8") as f:
+        text = f.read()
+    doc = Document(text)
 
-# --- Leitura das transcrições e criação do índice ---
+    # Configura embedding e LLM
+    embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+    llm = OpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=OPENAI_API_KEY)
+    service_context = ServiceContext.from_defaults(
+        llm_predictor=LLMPredictor(llm=llm),
+        embed_model=embed_model,
+    )
+
+    # Cria ou re-cria o índice
+    index = GPTVectorStoreIndex.from_documents([doc], service_context=service_context)
+
+    # Persiste em disco
+    storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+    index.storage_context.persist()
+
 if __name__ == "__main__":
-    # cria pasta storage se não existir
-    os.makedirs("storage", exist_ok=True)
-
-    # lê o arquivo único de transcricoes.txt
-    reader = SimpleDirectoryReader(input_files=["transcricoes.txt"])
-    docs = reader.load_data()
-
-    # gera o índice e salva em disco
-    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_context)
-    index.storage_context.persist(persist_dir="storage")
-
-    print("Índice gerado e salvo em ./storage")
+    os.makedirs(INDEX_DIR, exist_ok=True)
+    build_and_persist_index()
+    print("✅ Índice gerado com sucesso em", INDEX_DIR)

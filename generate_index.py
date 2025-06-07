@@ -1,7 +1,10 @@
 import os
 
-from llama_index.core.storage_context import StorageContext
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, load_index_from_storage
+from llama_index import (
+    StorageContext,
+    SimpleDirectoryReader,
+    GPTVectorStoreIndex,
+)
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
 
@@ -15,16 +18,18 @@ Settings.embed_model = OpenAIEmbedding(
     api_key=OPENAI_API_KEY
 )
 
-# Cria o diretório se não existir
+# Garante que o diretório de índice exista
 os.makedirs(INDEX_DIR, exist_ok=True)
 
-# Gera ou carrega o índice
+# Se não existir índice, gera; senão, só informa
 if not os.listdir(INDEX_DIR):
-    # Lê todo o texto da transcricoes.txt
-    documents = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
-    index = GPTVectorStoreIndex.from_documents(documents)
-    storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-    index.storage_context = storage_context
+    # Lê o arquivo de transcrições
+    docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
+    # Cria índice vetorial
+    index = GPTVectorStoreIndex.from_documents(docs)
+    # Associa ao storage e salva em disco
+    storage = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+    index.storage_context = storage
     index.save_to_disk(os.path.join(INDEX_DIR, "index.json"))
     print("Índice gerado em", INDEX_DIR)
 else:

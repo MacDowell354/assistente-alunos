@@ -1,45 +1,27 @@
-# generate_index.py
 import os
-from llama_index import (
-    StorageContext,
-    LLMPredictor,
-    PromptHelper,
-    ServiceContext,
-    Document,
-    load_index_from_storage,
-    GPTVectorStoreIndex,
-)
+from llama_index.storage.storage_context import StorageContext
+from llama_index import load_index_from_storage, GPTVectorStoreIndex, SimpleDirectoryReader
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
-from llama_index.node_parser import SimpleNodeParser
+from llama_index import ServiceContext
 
-# Caminhos / Configuração
+# Configuração da sua chave e diretório de índice
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
-TRANSCRIPT_FILE = "transcricoes.txt"
+INDEX_DIR = "./storage"
 
-def build_and_persist_index():
-    # Lê todo o arquivo de transcrições como um único Document
-    with open(TRANSCRIPT_FILE, "r", encoding="utf-8") as f:
-        text = f.read()
-    doc = Document(text)
+# 1) Gere as embeddings com sua chave
+service_context = ServiceContext.from_defaults(
+    embed_model=OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+)
 
-    # Configura embedding e LLM
-    embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
-    llm = OpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=OPENAI_API_KEY)
-    service_context = ServiceContext.from_defaults(
-        llm_predictor=LLMPredictor(llm=llm),
-        embed_model=embed_model,
-    )
-
-    # Cria ou re-cria o índice
-    index = GPTVectorStoreIndex.from_documents([doc], service_context=service_context)
-
-    # Persiste em disco
+# 2) Leia transcricoes.txt e crie o índice (ou recarregue)
+if not os.path.exists(INDEX_DIR) or not os.listdir(INDEX_DIR):
+    # primeira vez: gera índice
+    docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
+    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_context)
+    index.storage_context.persist(persist_dir=INDEX_DIR)
+    print("Índice criado e salvo em ./storage")
+else:
+    # já existe: apenas carrega
     storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-    index.storage_context.persist()
-
-if __name__ == "__main__":
-    os.makedirs(INDEX_DIR, exist_ok=True)
-    build_and_persist_index()
-    print("✅ Índice gerado com sucesso em", INDEX_DIR)
+    index = load_index_from_storage(storage_context)
+    print("Índice carregado de ./storage")

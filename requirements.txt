@@ -1,3 +1,4 @@
+# bcrypt compatível com passlib
 bcrypt==3.2.2
 passlib[bcrypt]>=1.7.4
 
@@ -5,14 +6,14 @@ passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
 
 # FastAPI + Jinja2 + Uvicorn
-fastapi>=0.95.0
-jinja2>=3.1.2
-uvicorn>=0.22.0
-python-multipart>=0.0.6
+fastapi
+uvicorn
+jinja2
+python-multipart
 
-# OpenAI + embeddings + Indéxação
+# OpenAI + embeddings + indexação
 openai>=0.27.0
 llama-index==0.10.42
 
-# Carrega variáveis de .env (se usar localmente)
-python-dotenv>=1.0.0
+# Outras (se usar .env localmente)
+python-dotenv

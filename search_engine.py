@@ -1,24 +1,31 @@
 import os
-from llama_index import StorageContext, load_index_from_storage, ServiceContext
+
+from llama_index.core.storage_context import StorageContext
+from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core.settings import Settings
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "./storage"
+INDEX_DIR = "storage"
 
-# Cria context de serviço (mesmo de antes) para usar embeddings
-service_context = ServiceContext.from_defaults(
-    embed_model=OpenAIEmbedding(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+# Inicializa o embedding
+Settings.embed_model = OpenAIEmbedding(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY
 )
 
-# Carrega o índice já persistido
-storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = load_index_from_storage(storage_context, service_context=service_context)
+# Cria o diretório se não existir
+os.makedirs(INDEX_DIR, exist_ok=True)
 
-def retrieve_relevant_context(question: str) -> str:
-    """
-    Faz query semântica no índice e retorna o texto mais relevante.
-    """
-    query_engine = index.as_query_engine()
-    response = query_engine.query(question)
-    return str(response)
+# Gera ou carrega o índice
+if not os.listdir(INDEX_DIR):
+    # Lê todo o texto da transcricoes.txt
+    documents = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
+    index = GPTVectorStoreIndex.from_documents(documents)
+    storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+    index.storage_context = storage_context
+    index.save_to_disk(os.path.join(INDEX_DIR, "index.json"))
+    print("Índice gerado em", INDEX_DIR)
+else:
+    print("Índice já existe em", INDEX_DIR)

@@ -1,15 +1,8 @@
 import os
-
-# Leitor de arquivos locais
 from llama_index.readers.simple_directory_reader import SimpleDirectoryReader
-# Criação de índice vetorial
-from llama_index.indices.vector_store import GPTVectorStoreIndex
-# Persistência do índice
+from llama_index import GPTVectorStoreIndex, ServiceContext
 from llama_index.storage.storage_context import StorageContext
-# Embeddings OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
-# Contexto de serviço (combina LLM + Embedding)
-from llama_index.service_context import ServiceContext
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -23,18 +16,19 @@ service_context = ServiceContext.from_defaults(
     )
 )
 
-# Garante que ./storage exista
+# Garante que o diretório de índice exista
 os.makedirs(INDEX_DIR, exist_ok=True)
 
-# Se estiver vazio, gera o índice; senão, apenas informa
+# Se não encontrar nada em ./storage, gera; senão, passa adiante
 if not os.listdir(INDEX_DIR):
-    print("🗂️ Gerando índice a partir de transcricoes.txt…")
+    print("🗂️  Gerando índice em", INDEX_DIR)
     docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
     index = GPTVectorStoreIndex.from_documents(docs, service_context=service_context)
 
+    # Persiste em disco
     storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
     index.storage_context = storage_ctx
     storage_ctx.persist(persist_dir=INDEX_DIR)
-    print(f"✅ Índice gerado em '{INDEX_DIR}'")
+    print("✅ Índice salvo em", INDEX_DIR)
 else:
-    print(f"ℹ️  Índice já existe em '{INDEX_DIR}'")
+    print("ℹ️  Índice já existe em", INDEX_DIR)

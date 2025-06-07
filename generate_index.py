@@ -1,6 +1,5 @@
 import os
-from llama_index.readers.simple_directory_reader import SimpleDirectoryReader
-from llama_index import GPTVectorStoreIndex, ServiceContext
+from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, ServiceContext
 from llama_index.storage.storage_context import StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 
@@ -8,7 +7,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# Cria o ServiceContext com o embedding da OpenAI
+# Monta o ServiceContext com o embedding da OpenAI
 service_context = ServiceContext.from_defaults(
     embed_model=OpenAIEmbedding(
         model="text-embedding-3-small",
@@ -16,10 +15,10 @@ service_context = ServiceContext.from_defaults(
     )
 )
 
-# Garante que o diretório de índice exista
+# Garante que o diretório exista
 os.makedirs(INDEX_DIR, exist_ok=True)
 
-# Se não encontrar nada em ./storage, gera; senão, passa adiante
+# Se vazio, gera o índice; caso contrário, pula
 if not os.listdir(INDEX_DIR):
     print("🗂️  Gerando índice em", INDEX_DIR)
     docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()

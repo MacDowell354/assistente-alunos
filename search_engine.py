@@ -1,7 +1,6 @@
 import os
 
-from llama_index.core.storage_context import StorageContext
-from llama_index import load_index_from_storage
+from llama_index import StorageContext, load_index_from_storage
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
 
@@ -16,14 +15,14 @@ Settings.embed_model = OpenAIEmbedding(
 )
 
 # Carrega o índice da pasta ./storage
-storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = load_index_from_storage(storage_context)
+storage = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+index = load_index_from_storage(storage)
 
 def retrieve_relevant_context(question: str) -> str:
     """
-    Retorna o contexto mais relevante para a pergunta,
+    Retorna o contexto mais relevante para a pergunta
     usando o índice carregado em memória.
     """
-    query_engine = index.as_query_engine()
-    response = query_engine.query(question)
-    return str(response)
+    q_engine = index.as_query_engine()
+    result = q_engine.query(question)
+    return str(result)

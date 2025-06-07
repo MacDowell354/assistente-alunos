@@ -1,25 +1,18 @@
-# Autenticação e hashing
 bcrypt==3.2.2
-passlib[bcrypt]==1.7.4
-
-# FastAPI, Uvicorn e Jinja2
-fastapi==0.95.1
-uvicorn==0.22.0
-jinja2==3.1.2
-python-multipart==0.0.6
-
-# Variáveis de ambiente
-python-dotenv==1.0.0
+passlib[bcrypt]>=1.7.4
 
 # JWT
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]>=3.3.0
 
-# OpenAI e embeddings
-openai==0.27.0
+# FastAPI + Jinja2 + Uvicorn
+fastapi>=0.95.0
+jinja2>=3.1.2
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+
+# OpenAI + embeddings + Indéxação
+openai>=0.27.0
 llama-index==0.10.42
 
-# Vetorização/Indexação
-faiss-cpu==1.7.3
-
-# Tokenização (para llama-index / OpenAI)
-tiktoken==0.5.1
+# Carrega variáveis de .env (se usar localmente)
+python-dotenv>=1.0.0

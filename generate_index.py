@@ -1,33 +1,34 @@
 import os
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, ServiceContext
-from llama_index.storage.storage_context import StorageContext
+from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex, StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# Monta o ServiceContext com o embedding da OpenAI
-service_context = ServiceContext.from_defaults(
-    embed_model=OpenAIEmbedding(
-        model="text-embedding-3-small",
-        api_key=OPENAI_API_KEY
-    )
+# Inicializa o embedding
+embed_model = OpenAIEmbedding(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY
 )
 
-# Garante que o diretório exista
+# Cria pasta de índice, se ainda não existir
 os.makedirs(INDEX_DIR, exist_ok=True)
 
-# Se vazio, gera o índice; caso contrário, pula
-if not os.listdir(INDEX_DIR):
-    print("🗂️  Gerando índice em", INDEX_DIR)
+# Se não houver arquivo de índice, gera um
+index_path = os.path.join(INDEX_DIR, "index.json")
+if not os.path.exists(index_path):
+    # Carrega todas as transcrições
     docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
-    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_context)
-
-    # Persiste em disco
-    storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-    index.storage_context = storage_ctx
-    storage_ctx.persist(persist_dir=INDEX_DIR)
-    print("✅ Índice salvo em", INDEX_DIR)
+    # Cria o índice e persiste em disco
+    index = GPTVectorStoreIndex.from_documents(
+        docs,
+        storage_context=StorageContext.from_defaults(
+            persist_dir=INDEX_DIR,
+            embed_model=embed_model
+        )
+    )
+    index.storage_context.persist()
+    print("Índice gerado em", INDEX_DIR)
 else:
-    print("ℹ️  Índice já existe em", INDEX_DIR)
+    print("Índice já existe em", INDEX_DIR)

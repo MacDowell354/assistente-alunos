@@ -1,30 +1,57 @@
-# src/gpt_utils.py
-
-from datetime import datetime
 import os
-from openai import OpenAI
-# ou: import openai
+import openai
+from typing import List, Tuple
+from search_engine import retrieve_relevant_context
 
-def generate_answer(question: str, context: str) -> str:
+# --- Configurações da OpenAI ---
+openai.api_key = os.getenv("OPENAI_API_KEY")
+MODEL_NAME = "gpt-3.5-turbo"
+TEMPERATURE = 0.2
+MAX_TOKENS = 800
+
+def generate_answer(
+    question: str,
+    chat_history: List[Tuple[str, str]]
+) -> str:
     """
-    Aqui você monta o prompt com context + question
-    e faz a chamada ao OpenAI completions/chat completions.
+    Gera uma resposta da OpenAI para a `question`, injetando
+    primeiro o trecho mais relevante das transcrições e
+    preservando o `chat_history` para encadeamento.
     """
-    prompt = f"""
-Você é um tutor no Curso “Consultório High Ticket”. Use apenas o contexto abaixo para responder:
+    # 1) Busca o contexto relevante no índice
+    context = retrieve_relevant_context(question)
 
-CONTEXTOS:
-{context}
+    # 2) Monta a lista de mensagens para o ChatCompletion
+    messages = []
 
-ALUNO PERGUNTA:
-{question}
+    # Mensagem de sistema com o contexto
+    messages.append({
+        "role": "system",
+        "content": (
+            "Você é um assistente especializado no curso Consultório High Ticket. "
+            "Use apenas o seguinte trecho das transcrições para responder:\n\n"
+            f"{context}\n\n"
+            "Se for pergunta fora desse contexto, responda com suas próprias palavras "
+            "mas mantendo o foco no material do curso."
+        )
+    })
 
-Responda de forma clara, objetiva, como se fosse um mentor 1-a-1.
-"""
-    resp = OpenAI(api_key=os.getenv("OPENAI_API_KEY")).chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "Você é um tutor."},
-                  {"role": "user", "content": prompt}],
-        temperature=0.3,
+    # 3) Reproduz o histórico (usuário + assistente)
+    for user_q, assistant_a in chat_history:
+        messages.append({"role": "user", "content": user_q})
+        messages.append({"role": "assistant", "content": assistant_a})
+
+    # 4) Adiciona a pergunta atual
+    messages.append({"role": "user", "content": question})
+
+    # 5) Chama a OpenAI
+    resp = openai.ChatCompletion.create(
+        model=MODEL_NAME,
+        messages=messages,
+        temperature=TEMPERATURE,
+        max_tokens=MAX_TOKENS,
     )
-    return resp.choices[0].message.content.strip()
+
+    # 6) Extrai e devolve a resposta
+    answer = resp.choices[0].message.content.strip()
+    return answer

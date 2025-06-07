@@ -2,33 +2,30 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Entrar na IA.Nanda Mac</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-        rel="stylesheet"/>
-  <style>
-    body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f0f4f7; }
-    .login-card { width:100%; max-width:400px; padding:2rem; background:#fff; border-radius:0.75rem; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IA.Nanda Mac – Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="login-card">
-    <h1 class="h5 mb-3">🔒 Entrar na IA.Nanda Mac</h1>
-    {% if error %}
-      <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-    {% if request.cookies.get("login_msg") %}
-      <div class="alert alert-warning">{{ request.cookies.get("login_msg") }}</div>
-    {% endif %}
-    <form method="post">
-      <div class="mb-3">
-        <label class="form-label">Usuário</label>
-        <input type="text" name="username" class="form-control" placeholder="aluno1" required/>
+  <div class="container py-5">
+    <h1 class="h4 text-center mb-4">💡 Bem-vindo(a) à IA.Nanda Mac</h1>
+    <p class="text-center text-muted mb-4">Seu suporte 24h para o Curso Consultório High Ticket</p>
+
+    {% for turno in history %}
+      <div class="mb-2">
+        <div><strong>Você:</strong> {{ turno.user }}</div>
+        <div class="p-3 bg-light rounded"><strong>IA:</strong> {{ turno.assistant }}</div>
       </div>
+    {% endfor %}
+
+    <form id="askForm" action="/ask" method="post" class="mt-4">
+      <input type="hidden" name="history" value='{{ history_json|default("[]") }}' />
       <div class="mb-3">
-        <label class="form-label">Senha</label>
-        <input type="password" name="password" class="form-control" placeholder="sua senha" required/>
+        <label class="form-label">Digite sua dúvida sobre o curso:</label>
+        <textarea name="question" class="form-control" rows="3" required></textarea>
       </div>
-      <button class="btn btn-primary w-100">Entrar</button>
+      <button class="btn btn-primary">Perguntar à IA.Nanda Mac</button>
     </form>
   </div>
 </body>

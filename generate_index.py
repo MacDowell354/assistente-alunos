@@ -1,37 +1,40 @@
 import os
 from llama_index import (
-    SimpleDirectoryReader,
     StorageContext,
-    VectorStoreIndex
+    SimpleDirectoryReader,
+    GPTVectorStoreIndex,
 )
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index import LLMPredictor, ServiceContext
-from openai import OpenAI
+from llama_index import LLMPredictor, ServiceContext, PromptHelper
 
-# Configurações
+# --- Configurações de Embedding / Modelo ---
+from llama_index.llms import OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
 
-# Gera embeddings
 embed_model = OpenAIEmbedding(
     model="text-embedding-3-small",
-    api_key=OPENAI_API_KEY
+    api_key=OPENAI_API_KEY,
 )
-
-# Lê as transcrições
-docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
-
-# Cria contexto de serviço
+llm_predictor = LLMPredictor(
+    llm=OpenAI(model="gpt-3.5-turbo", temperature=0.0, openai_api_key=OPENAI_API_KEY)
+)
 service_context = ServiceContext.from_defaults(
-    chunk_size_limit=1024,
+    llm_predictor=llm_predictor,
     embed_model=embed_model,
+    prompt_helper=PromptHelper.from_llm_predictor(llm_predictor),
 )
 
-# Cria e persiste o índice
-index = VectorStoreIndex.from_documents(
-    docs, service_context=service_context
-)
-storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index.storage_context.persist(persist_dir=INDEX_DIR)
+# --- Leitura das transcrições e criação do índice ---
+if __name__ == "__main__":
+    # cria pasta storage se não existir
+    os.makedirs("storage", exist_ok=True)
 
-print("✅ Índice gerado com sucesso em", INDEX_DIR)
+    # lê o arquivo único de transcricoes.txt
+    reader = SimpleDirectoryReader(input_files=["transcricoes.txt"])
+    docs = reader.load_data()
+
+    # gera o índice e salva em disco
+    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_context)
+    index.storage_context.persist(persist_dir="storage")
+
+    print("Índice gerado e salvo em ./storage")

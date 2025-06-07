@@ -2,32 +2,31 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Entrar na IA.Nanda Mac</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <style>
-    body { min-height:100vh; display:flex; align-items:center; justify-content:center; background:#f0f4f7; }
-    .login-card { width:100%; max-width:400px; padding:2rem; border-radius:.75rem; box-shadow:0 2px 8px rgba(0,0,0,0.1); background:#fff; }
+    body { background-color: #f0f4f7; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+    .login-card { width:100%; max-width:400px; padding:2rem; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.1); border-radius:.75rem; }
   </style>
 </head>
 <body>
   <div class="login-card">
     <h1 class="h5 mb-3">🔒 Entrar na IA.Nanda Mac</h1>
-
     {% if login_msg %}
       <div class="alert alert-warning">{{ login_msg }}</div>
     {% endif %}
     {% if error %}
       <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
-
     <form action="/login" method="post">
       <div class="mb-3">
         <label class="form-label">Usuário</label>
-        <input type="text" name="username" class="form-control" placeholder="aluno1" required>
+        <input type="text" name="username" class="form-control" required/>
       </div>
       <div class="mb-3">
         <label class="form-label">Senha</label>
-        <input type="password" name="password" class="form-control" placeholder="sua senha" required>
+        <input type="password" name="password" class="form-control" required/>
       </div>
       <button class="btn btn-primary w-100">Entrar</button>
     </form>

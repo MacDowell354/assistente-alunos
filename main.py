@@ -1,19 +1,17 @@
-import os
-import json
+# main.py
+import os, json
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 
-from gpt_utils import generate_answer
 from search_engine import retrieve_relevant_context
 
-# --- App & Templates ---
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -25,8 +23,7 @@ ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
-    # já com a senha forte hashada
-    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
+    "aluno1": pwd_ctx.hash(os.getenv("INITIAL_PASSWORD", "N4nd@M4c#2025"))
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -55,34 +52,28 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return username
 
-# --- Exception Handler: 401 → /login + flash message ---
+# --- Exception Handler para 401 → /login + flash ---
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # usamos um hífen ASCII simples para não quebrar a codificação Latin-1
-        resp.set_cookie("login_msg", "Sessão expirada - faça login novamente.", max_age=5)
+        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
         return resp
     raise exc
 
-# --- Login Routes ---
-@app.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request):
-    # leitura do cookie de flash e logo em seguida remoção
-    login_msg = request.cookies.get("login_msg")
-    resp = templates.TemplateResponse("login.html", {
-        "request": request,
-        "flash": login_msg
-    })
+# --- Login ---
+@app.get("/login")
+def login_form(request: Request):
+    resp = templates.TemplateResponse("login.html", {"request": request})
     resp.delete_cookie("login_msg")
     return resp
 
 @app.post("/login")
-async def login(
+def login(
     request: Request,
     response: Response,
     username: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
 ):
     user = authenticate_user(username, password)
     if not user:
@@ -93,33 +84,31 @@ async def login(
         )
     token = create_access_token(user)
     resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(
-        "access_token",
-        token,
-        httponly=True,
-        max_age=ACCESS_EXPIRE * 60
-    )
+    resp.set_cookie("access_token", token, httponly=True, max_age=ACCESS_EXPIRE*60)
     return resp
 
 # --- Chat Encadeado ---
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def chat(request: Request):
-    return templates.TemplateResponse("chat.html", {
-        "request": request,
-        "history": []
-    })
+@app.get("/", dependencies=[Depends(get_current_user)])
+def chat_page(request: Request):
+    # history inicial vazio
+    return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
-@app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def chat_ask(
+@app.post("/ask", dependencies=[Depends(get_current_user)])
+def ask_question(
     request: Request,
     question: str = Form(...),
-    history: str = Form(None)
+    history: str = Form("{}"),  # JSON string
 ):
-    hist = json.loads(history) if history else []
+    hist = json.loads(history)
+    # Busca contexto e gera resposta
     context = retrieve_relevant_context(question)
-    answer = generate_answer(question, context)
-    hist.append({"question": question, "answer": answer})
-    return templates.TemplateResponse("chat.html", {
-        "request": request,
-        "history": hist
-    })
+    # Aqui você poderia chamar openai.ChatCompletion para melhor formatação...
+    answer = context
+
+    # Atualiza histórico
+    hist.append({"role": "user", "text": question})
+    hist.append({"role": "assistant", "text": answer})
+    return templates.TemplateResponse(
+        "chat.html",
+        {"request": request, "history": hist}
+    )

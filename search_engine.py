@@ -7,7 +7,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# Mesma configuração de embedding usada no build
+# Mesma configuração de embedding do build
 service_context = ServiceContext.from_defaults(
     embed_model=OpenAIEmbedding(
         model="text-embedding-3-small",
@@ -15,7 +15,7 @@ service_context = ServiceContext.from_defaults(
     )
 )
 
-# Carrega o índice persistido em disco
+# Carrega o índice persistido
 storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
 index = load_index_from_storage(storage_ctx, service_context=service_context)
 
@@ -23,6 +23,6 @@ def retrieve_relevant_context(question: str) -> str:
     """
     Executa a query semântica e retorna o trecho mais relevante.
     """
-    query_engine = index.as_query_engine()
-    response = query_engine.query(question)
-    return str(response)
+    q_engine = index.as_query_engine()
+    resp = q_engine.query(question)
+    return str(resp)

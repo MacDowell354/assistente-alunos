@@ -1,18 +1,19 @@
+# bcrypt compatível com passlib
 bcrypt==3.2.2
 passlib[bcrypt]>=1.7.4
 
 # JWT
 python-jose[cryptography]>=3.3.0
 
-# Web
+# FastAPI + Uvicorn + Jinja
 fastapi
 uvicorn
 jinja2
 python-multipart
 
-# OpenAI & embeddings
+# OpenAI + LLama-Index
 openai>=0.27.0
 llama-index==0.10.42
 
-# dotenv (opcional, se quiser carregar .env local)
+# Dotenv (se precisar de .env local)
 python-dotenv

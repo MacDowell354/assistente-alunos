@@ -3,77 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IA.Nanda Mac • Consultório High Ticket</title>
-
-  <!-- Bootstrap CSS -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-    integrity="sha384-...seu-hash..."
-    crossorigin="anonymous"
-  />
-  <style>
-    body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #f0f4f7;
-    }
-    .card {
-      max-width: 600px;
-      width: 100%;
-    }
-    textarea {
-      resize: vertical;
-      min-height: 120px;
-    }
-    /* Spinner menor */
-    .spinner-border-sm {
-      width: 1rem;
-      height: 1rem;
-      border-width: .15em;
-    }
-  </style>
+  <title>IA.Nanda Mac</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+        rel="stylesheet">
 </head>
 <body>
-  <div class="card shadow p-4">
-    <h1 class="h3 mb-3">💡 Bem-vindo(a) à IA.Nanda Mac</h1>
-    <p class="text-muted mb-4">
-      Seu suporte exclusivo 24h para o Curso Consultório High Ticket, pela IA.Nanda Mac.
-    </p>
-
-    <form id="askForm" method="post" action="/ask">
+  <div class="card shadow m-5 p-4">
+    <h3>💡 Bem-vindo(a) à IA.Nanda Mac</h3>
+    <p>Seu suporte exclusivo 24h para o Curso Consultório High Ticket.</p>
+    <form action="/ask" method="post">
       <div class="mb-3">
-        <label for="question" class="form-label">Digite sua dúvida sobre o curso:</label>
-        <textarea
-          id="question"
-          name="question"
-          class="form-control"
-          placeholder="Escreva aqui..."
-          required
-          oninvalid="this.setCustomValidity('Por favor, escreva sua dúvida antes de enviar.')"
-          oninput="this.setCustomValidity('')"
-        ></textarea>
+        <label class="form-label">Digite sua dúvida sobre o curso:</label>
+        <textarea name="question" class="form-control" rows="4" required></textarea>
       </div>
-      <button id="btnSubmit" type="submit" class="btn btn-primary">
-        <span id="btnText">Perguntar à IA.Nanda Mac</span>
-        <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-      </button>
+      <button class="btn btn-primary">Perguntar à IA.Nanda Mac</button>
     </form>
   </div>
-
-  <script>
-    const form = document.getElementById('askForm');
-    const btn = document.getElementById('btnSubmit');
-    const txt = document.getElementById('btnText');
-    const spinner = document.getElementById('btnSpinner');
-
-    form.addEventListener('submit', () => {
-      btn.disabled = true;
-      txt.classList.add('d-none');
-      spinner.classList.remove('d-none');
-    });
-  </script>
 </body>
 </html>

@@ -1,39 +1,40 @@
-# main.py
 import os
+import json
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Form, Request, Response, status, Depends
+
+from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
 from passlib.context import CryptContext
-from jose import JWTError, jwt
+from jose import jwt, JWTError
 
 from gpt_utils import generate_answer
 from search_engine import retrieve_relevant_context
 
-# App e templates
+# --- App & Templates ---
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Auth / JWT
-SECRET_KEY = os.getenv("SECRET_KEY")
+# --- JWT / Auth Config ---
+SECRET_KEY = os.getenv("SECRET_KEY", "troque_disso_no_env")
 ALGORITHM = "HS256"
-ACCESS_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+ACCESS_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fake_users = {
     "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
-def verify_password(plain, hashed) -> bool:
+def verify_password(plain: str, hashed: str) -> bool:
     return pwd_ctx.verify(plain, hashed)
 
 def authenticate_user(username: str, password: str):
-    hashed = fake_users.get(username)
-    if not hashed or not verify_password(password, hashed):
+    if username not in fake_users or not verify_password(password, fake_users[username]):
         return False
-    return {"sub": username}
+    return username
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
@@ -41,65 +42,64 @@ def create_access_token(data: dict, expires_delta: timedelta):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(request: Request):
+def get_current_user(request: Request):
     token = request.cookies.get("access_token")
     if not token:
-        raise JWTError("Sessão inválida")
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    return payload.get("sub")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return username
+
+@app.exception_handler(HTTPException)
+async def auth_exception_handler(request, exc):
+    resp = RedirectResponse(url="/login", status_code=302)
+    resp.delete_cookie("access_token")
+    return resp
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    try:
-        user = await get_current_user(request)
-        return templates.TemplateResponse("chat.html", {"request": request, "history": []})
-    except JWTError:
-        return RedirectResponse(url="/login")
+def root(request: Request):
+    return RedirectResponse(url="/login")
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_get(request: Request, error: str = None):
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+def login_get(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
 @app.post("/login")
-async def login_post(response: Response, username: str = Form(...), password: str = Form(...)):
+def login_post(request: Request, response: Response,
+               username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password)
     if not user:
-        return RedirectResponse(url="/login?error=Usuário%20ou%20senha%20inválidos", status_code=302)
-    token = create_access_token({"sub": username}, timedelta(minutes=ACCESS_EXPIRE_MINUTES))
-    response = RedirectResponse(url="/", status_code=302)
-    response.set_cookie("access_token", token, httponly=True, max_age=ACCESS_EXPIRE_MINUTES * 60)
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Usuário ou senha inválidos."})
+    access_token = create_access_token({"sub": user}, timedelta(minutes=ACCESS_EXPIRE_MINUTES))
+    response = RedirectResponse(url="/chat", status_code=302)
+    response.set_cookie("access_token", access_token, httponly=True, max_age=ACCESS_EXPIRE_MINUTES * 60)
     return response
 
-@app.post("/ask", response_class=HTMLResponse)
-async def ask(request: Request, question: str = Form(...)):
-    # Recupera histórico enviado no form (parte encoded via JS)
-    form = await request.form()
-    history = form.get("history", "")
-    history_pairs = []
-    if history:
-        for item in history.split("||"):
-            user_q, ia_a = item.split("::")
-            history_pairs.append((user_q, ia_a))
+@app.get("/chat", response_class=HTMLResponse)
+def chat_get(request: Request, username: str = Depends(get_current_user)):
+    # histórico vazio inicialmente
+    history = []
+    return templates.TemplateResponse("chat.html", {"request": request, "history": history})
 
-    # Busca contexto na transcrição
+@app.post("/chat", response_class=HTMLResponse)
+def chat_post(request: Request, question: str = Form(...), username: str = Depends(get_current_user)):
+    # recupera histórico do form hidden
+    data = await request.form()
+    history = json.loads(data.get("history_json", "[]"))
+    # insere pergunta nova
+    history.append({"role": "user", "text": question})
+    # busca contexto semântico
     context = retrieve_relevant_context(question)
-
-    # Monta prompt encadeado
-    messages = []
-    for uq, aa in history_pairs:
-        messages.append({"role": "user", "content": uq})
-        messages.append({"role": "assistant", "content": aa})
-    # Insere contexto como system
-    messages.insert(0, {"role": "system", "content": f"Use este contexto do curso:\n{context}"})
-    messages.append({"role": "user", "content": question})
-
-    # Gera resposta final
-    answer = generate_answer(messages)
-
-    # Atualiza histórico e renderiza
-    history_pairs.append((question, answer))
-    encoded = "||".join(f"{uq}::{aa}" for uq, aa in history_pairs)
-    return templates.TemplateResponse(
-        "chat.html",
-        {"request": request, "history": history_pairs, "access": str(encoded)}
-    )
+    # gera resposta via OpenAI
+    answer = generate_answer(question, context, history)
+    history.append({"role": "assistant", "text": answer})
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "history": history,
+        "history_json": json.dumps(history)
+    })

@@ -1,35 +1,31 @@
 import os
-import json
 from datetime import datetime, timedelta
+from typing import List, Dict
 
-from fastapi import FastAPI, Form, Depends, HTTPException, status, Request, Response
+from fastapi import FastAPI, Form, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
 
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 
 from search_engine import retrieve_relevant_context
-from gpt_utils import generate_answer
 
 # --- App & Templates ---
 app = FastAPI()
-# Session middleware for chat history
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-env")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # --- JWT / Auth Config ---
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_EXPIRE = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# Pre-hashed student user
 fake_users = {
-    "aluno1": pwd_ctx.hash(os.getenv("STUDENT_PWD", "N4nd@M4c#2025"))
+    # já com hash da senha forte
+    "aluno1": pwd_ctx.hash("N4nd@M4c#2025")
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -63,70 +59,57 @@ def get_current_user(request: Request) -> str:
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
         resp = RedirectResponse(url="/login")
-        # temp cookie for flash
-        resp.set_cookie("login_msg", "Sessão expirada — faça login novamente.", max_age=5)
+        resp.set_cookie("login_msg", "Sessão expirada – faça login novamente.", max_age=5)
         return resp
     raise exc
 
 # --- Login Routes ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_form(request: Request):
-    msg = request.cookies.get("login_msg")
-    resp = templates.TemplateResponse("login.html", {"request": request, "error": msg})
+    resp = templates.TemplateResponse("login.html", {"request": request, "error": None, "login_msg": request.cookies.get("login_msg")})
     resp.delete_cookie("login_msg")
     return resp
 
-@app.post("/login")
-async def login(
-    request: Request,
-    response: Response,
-    username: str = Form(...),
-    password: str = Form(...)
-):
+@app.post("/login", response_class=HTMLResponse)
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password)
     if not user:
         return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": "Usuário ou senha inválidos."},
-            status_code=status.HTTP_401_UNAUTHORIZED
+            "login.html", {"request": request, "error": "Usuário ou senha inválidos."}, status_code=401
         )
     token = create_access_token(user)
-    resp = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    resp.set_cookie(
-        "access_token",
-        token,
-        httponly=True,
-        max_age=ACCESS_EXPIRE * 60
-    )
-    # clear any chat history
-    resp.delete_cookie("chat_history")
+    resp = RedirectResponse(url="/", status_code=302)
+    resp.set_cookie("access_token", token, httponly=True, max_age=ACCESS_EXPIRE * 60)
     return resp
 
-# --- Chat Route ---
+# --- Chat Encadeado Routes ---
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def chat_page(request: Request):
-    # load history from session
-    history = request.session.get("history", [])
-    return templates.TemplateResponse(
-        "chat.html",
-        {"request": request, "history": history}
-    )
+async def home(request: Request):
+    # history vazio no primeiro acesso
+    return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
-# --- Ask / Chat Handler ---
 @app.post("/ask", response_class=HTMLResponse, dependencies=[Depends(get_current_user)])
-async def ask_question(request: Request, question: str = Form(...)):
-    # retrieve or init chat history
-    history = request.session.get("history", [])
+async def ask(request: Request, question: str = Form(...), history: str = Form("")):
+    # history vem como JSON string
+    chat_history: List[Dict[str, str]] = []
+    if history:
+        import json
+        chat_history = json.loads(history)
 
-    # semantic search
+    # busca contexto
     context = retrieve_relevant_context(question)
-    answer = generate_answer(question, context)
+    # recomende o GPT contexualizado (aqui uso a transcrição como “contexto”)
+    answer = context  # ou você pode chamar outro GPT com prompt de chat encadeado
 
-    # append and save history
-    history.append({"user": question, "assistant": answer})
-    request.session["history"] = history
-
+    # atualiza histórico
+    chat_history.append({"user": question, "assistant": answer})
+    import json
     return templates.TemplateResponse(
         "chat.html",
-        {"request": request, "history": history}
+        {
+            "request": request,
+            "history": chat_history,
+            # passa o JSON do history de volta no form hidden
+            "history_json": json.dumps(chat_history),
+        }
     )

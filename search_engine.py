@@ -1,6 +1,7 @@
 import os
 
-from llama_index import StorageContext, load_index_from_storage
+from llama_index import load_index_from_storage
+from llama_index.storage.storage_context import StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.settings import Settings
 
@@ -15,8 +16,8 @@ Settings.embed_model = OpenAIEmbedding(
 )
 
 # Carrega o índice da pasta ./storage
-storage = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = load_index_from_storage(storage)
+storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+index = load_index_from_storage(storage_ctx)
 
 def retrieve_relevant_context(question: str) -> str:
     """

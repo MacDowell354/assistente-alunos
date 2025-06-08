@@ -1,41 +1,30 @@
 import os
-from llama_index import Document, GPTVectorStoreIndex
+
+from llama_index import ServiceContext
+from llama_index.readers import SimpleDirectoryReader
+from llama_index.indices.vector_store import GPTVectorStoreIndex
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.storage.storage_context import StorageContext
-from llama_index.indices.service_context import ServiceContext
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# Cria pasta de índice se não existir
+# Garante que a pasta existe
 os.makedirs(INDEX_DIR, exist_ok=True)
 
-# Configura o serviço de embeddings
-service_context = ServiceContext.from_defaults(
-    embed_model=OpenAIEmbedding(
-        model="text-embedding-3-small",
-        api_key=OPENAI_API_KEY
-    )
-)
-
-# Se não houver nada em storage, gera o índice
+# Se não existir índice, gera; senão, só informa
 if not os.listdir(INDEX_DIR):
-    # Lê todo o arquivo de transcrições
-    with open("transcricoes.txt", encoding="utf-8") as f:
-        texto = f.read()
+    # 1) Lê o TXT
+    reader = SimpleDirectoryReader(input_files=["transcricoes.txt"])
+    docs = reader.load_data()
 
-    # Cria um único Documento (você pode particionar em chunks se preferir)
-    doc = Document(text=texto, doc_id="transcricoes")
+    # 2) Configura o embedding
+    embed = OpenAIEmbedding(api_key=OPENAI_API_KEY)
+    service_ctx = ServiceContext.from_defaults(embed_model=embed)
 
-    # Gera o índice semântico
-    index = GPTVectorStoreIndex.from_documents([doc], service_context=service_context)
-
-    # Salva no disco
-    storage_context = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-    index.storage_context = storage_context
-    index.save_to_disk(os.path.join(INDEX_DIR, "index.json"))
-
-    print("Índice criado em", INDEX_DIR)
+    # 3) Monta e persiste o índice
+    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_ctx)
+    index.storage_context.persist(INDEX_DIR)
+    print("Índice gerado em", INDEX_DIR)
 else:
     print("Índice já existe em", INDEX_DIR)

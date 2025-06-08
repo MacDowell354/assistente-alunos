@@ -8,7 +8,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage/chroma"
 TOP_K = 3
 
-# 1) Inicializa o client com os mesmos Settings usados no build
+# 1) Inicializa o client com os mesmos Settings
 client = chromadb.Client(Settings(
     chroma_db_impl="duckdb+parquet",
     persist_directory=INDEX_DIR
@@ -20,7 +20,7 @@ embed_fn = embedding_functions.OpenAIEmbeddingFunction(
     model_name="text-embedding-3-small"
 )
 
-# 3) Obtém a coleção de transcrições
+# 3) Obtém a coleção já criada
 collection = client.get_collection(
     name="transcripts",
     embedding_function=embed_fn
@@ -36,4 +36,5 @@ def retrieve_relevant_context(question: str) -> str:
         n_results=TOP_K
     )
     docs = results["documents"][0]  # lista de strings
+    # junta com separador para clareza
     return "\n\n---\n\n".join(docs)

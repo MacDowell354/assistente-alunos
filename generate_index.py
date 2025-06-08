@@ -1,27 +1,49 @@
 import os
-from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex
-from llama_index.storage import StorageContext
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
+INDEX_DIR = "storage/chroma"
+CHUNK_SIZE = 1000
 
-def main():
-    # Garante pasta de persistência
-    os.makedirs(INDEX_DIR, exist_ok=True)
+def build_index():
+    # 1) Inicializa o client com nova API ChromaDB
+    client = chromadb.Client(Settings(
+        chroma_db_impl="duckdb+parquet",
+        persist_directory=INDEX_DIR
+    ))
 
-    # 1) Carrega o texto inteiro e faz o split interno em chunks
-    docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
+    # 2) Função de embedding OpenAI
+    embed_fn = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=OPENAI_API_KEY,
+        model_name="text-embedding-3-small"
+    )
 
-    # 2) Cria índice FAISS
-    index = GPTVectorStoreIndex.from_documents(docs)
+    # 3) Cria ou obtém a coleção
+    collection = client.get_or_create_collection(
+        name="transcripts",
+        embedding_function=embed_fn
+    )
 
-    # 3) Persiste em disco
-    storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-    index.storage_context = storage_ctx
-    index.save_to_disk(os.path.join(INDEX_DIR, "index.json"))
+    # 4) Lê e divide em chunks
+    with open("transcricoes.txt", "r", encoding="utf-8") as f:
+        text = f.read()
+    chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
+    ids = [f"chunk_{i}" for i in range(len(chunks))]
 
-    print(f"✅ Indice FAISS criado em '{INDEX_DIR}' com {len(docs)} documentos.")
+    # 5) Upsert
+    collection.upsert(
+        ids=ids,
+        documents=chunks,
+        metadatas=[{} for _ in chunks]
+    )
+
+    # 6) Persiste
+    client.persist()
+    print(f"✅ Índice gerado em '{INDEX_DIR}' com {len(chunks)} chunks.")
 
 if __name__ == "__main__":
-    main()
+    os.makedirs(INDEX_DIR, exist_ok=True)
+    build_index()

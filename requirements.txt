@@ -1,23 +1,19 @@
-# autenticação e hashing
+# bcrypt compatível com passlib
 bcrypt==3.2.2
 passlib[bcrypt]>=1.7.4
 
 # JWT
 python-jose[cryptography]>=3.3.0
 
-# FastAPI + templates + Uvicorn
-fastapi>=0.95.1
-uvicorn>=0.20.0
-jinja2>=3.1.2
+# FastAPI + Jinja2 + Uvicorn
+fastapi==0.95.1
+uvicorn==0.20.0
+jinja2==3.1.2
 python-multipart>=0.0.6
+python-dotenv==1.0.0
 
-# variáveis de ambiente
-python-dotenv>=1.0.0
-
-# OpenAI & embeddings & Llama-Index
+# OpenAI + embeddings + indexação
 openai>=0.27.0
-llama-index>=0.10.42
-
-# para garantir que o import interno funcione
-langchain>=0.0.274
-langchain-community>=0.0.11
+llama-index==0.10.42
+langchain>=0.0.289
+langchain-community>=0.0.1

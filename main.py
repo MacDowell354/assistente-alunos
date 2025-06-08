@@ -20,9 +20,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 DEFAULT_PWD = os.getenv("DEFAULT_STUDENT_PWD", "N4nd@M4c#2025")
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-fake_users = {
-    "aluno1": pwd_ctx.hash(DEFAULT_PWD)
-}
+fake_users = {"aluno1": pwd_ctx.hash(DEFAULT_PWD)}
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_ctx.verify(plain, hashed)
@@ -32,8 +30,8 @@ def authenticate_user(username: str, password: str) -> str | None:
     if not hashed or not verify_password(password, hashed):
         return None
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": username, "exp": expire}
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    token = jwt.encode({"sub": username, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return token
 
 async def get_current_user(request: Request) -> str:
     token = request.cookies.get("access_token")
@@ -50,21 +48,10 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# redirect raiz → login
 @app.get("/", include_in_schema=False)
-async def root():
+def root():
     return RedirectResponse("/login")
 
-# custom 401 → /login
-@app.exception_handler(HTTPException)
-async def auth_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        resp = RedirectResponse(url="/login", status_code=302)
-        resp.set_cookie("login_error", "Sessão expirada — faça login novamente.", max_age=5)
-        return resp
-    return HTMLResponse(str(exc.detail), status_code=exc.status_code)
-
-# --- Login ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_get(request: Request):
     error = request.cookies.get("login_error")
@@ -86,33 +73,24 @@ async def login_post(request: Request, response: Response,
     resp.set_cookie("access_token", token, httponly=True, max_age=ACCESS_TOKEN_EXPIRE_MINUTES*60)
     return resp
 
-# --- Chat Encadeado ---
 @app.get("/chat", response_class=HTMLResponse)
 async def chat_get(request: Request, user: str = Depends(get_current_user)):
     return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
 @app.post("/ask", response_class=HTMLResponse)
 async def chat_post(request: Request, question: str = Form(...), user: str = Depends(get_current_user)):
-    # recupera histórico do hidden field
     form = await request.form()
     history = json.loads(form.get("history", "[]"))
 
-    # busca contexto semântico
+    # busca contexto e gera resposta
     context = retrieve_relevant_context(question)
-
-    # gera resposta GPT
     answer = generate_answer(question, context, history)
 
-    # atualiza histórico
     history.append({"role": "Você", "text": question})
     history.append({"role": "IA",    "text": answer})
 
-    return templates.TemplateResponse(
-        "chat.html",
-        {"request": request, "history": history}
-    )
+    return templates.TemplateResponse("chat.html", {"request": request, "history": history})
 
-# health-check
 @app.get("/health")
 async def health():
     return {"status": "ok"}

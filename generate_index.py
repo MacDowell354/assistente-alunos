@@ -1,31 +1,51 @@
 import os
+import faiss
+import numpy as np
+import pickle
+from openai import OpenAI
+from dotenv import load_dotenv
 
-from llama_index import SimpleDirectoryReader, ServiceContext, GPTVectorStoreIndex
-from llama_index.embeddings.openai import OpenAIEmbedding
+# Carrega variáveis de ambiente no local, se houver
+load_dotenv()
 
-# --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
-TRANSCRIPTS_FILE = "transcricoes.txt"
+INDEX_URL = "storage/faiss.index"
+EMB_URL   = "storage/embeddings.pkl"
+TXT_FILE  = "transcricoes.txt"
+CHUNK_SIZE = 1000
+
+def chunk_text(text, size=CHUNK_SIZE):
+    return [ text[i : i + size] for i in range(0, len(text), size) ]
 
 def build_index():
-    # 1) Inicializa embedding model
-    embed_model = OpenAIEmbedding(
-        api_key=OPENAI_API_KEY,
-        model="text-embedding-3-small"
-    )
-    service_ctx = ServiceContext.from_defaults(embed_model=embed_model)
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    # 1) leia e parta o texto em chunks
+    with open(TXT_FILE, "r", encoding="utf-8") as f:
+        text = f.read()
+    chunks = chunk_text(text)
 
-    # 2) Lê as transcrições
-    docs = SimpleDirectoryReader(input_files=[TRANSCRIPTS_FILE]).load_data()
+    # 2) calcule embeddings para cada chunk
+    embeddings = []
+    for chunk in chunks:
+        resp = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=chunk
+        )
+        embeddings.append(resp.data[0].embedding)
+    embeddings = np.array(embeddings).astype("float32")
 
-    # 3) Cria índice FAISS
-    index = GPTVectorStoreIndex.from_documents(docs, service_context=service_ctx)
+    # 3) crie o índice FAISS
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dim)
+    index.add(embeddings)
 
-    # 4) Persiste em disco
-    os.makedirs(INDEX_DIR, exist_ok=True)
-    index.storage_context.persist(persist_dir=INDEX_DIR)
-    print(f"✅ Índice FAISS criado em '{INDEX_DIR}' com {len(docs)} documentos.")
+    # 4) persista índice e chunks
+    os.makedirs(os.path.dirname(INDEX_URL), exist_ok=True)
+    faiss.write_index(index, INDEX_URL)
+    with open(EMB_URL, "wb") as f:
+        pickle.dump(chunks, f)
+
+    print(f"✅ Índice FAISS gerado em '{INDEX_URL}', {len(chunks)} chunks.")
 
 if __name__ == "__main__":
     build_index()

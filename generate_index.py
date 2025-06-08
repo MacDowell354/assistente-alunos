@@ -1,48 +1,27 @@
 import os
-import pickle
-import numpy as np
-import faiss
-import openai
+from llama_index import SimpleDirectoryReader, GPTVectorStoreIndex
+from llama_index.storage import StorageContext
 
 # --- Configurações ---
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
-INDEX_PATH = os.path.join(INDEX_DIR, "faiss.index")
-CHUNKS_PATH = os.path.join(INDEX_DIR, "chunks.pkl")
-CHUNK_SIZE = 1000  # caracteres por chunk
 
-def build_index():
-    # Cria storage se necessário
+def main():
+    # Garante pasta de persistência
     os.makedirs(INDEX_DIR, exist_ok=True)
 
-    # 1) Lê e chunkiza o texto
-    with open("transcricoes.txt", "r", encoding="utf-8") as f:
-        text = f.read()
-    chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
+    # 1) Carrega o texto inteiro e faz o split interno em chunks
+    docs = SimpleDirectoryReader(input_files=["transcricoes.txt"]).load_data()
 
-    # 2) Gera embeddings via OpenAI v1
-    embeddings = []
-    for chunk in chunks:
-        resp = openai.embeddings.create(
-            model="text-embedding-3-small",
-            input=chunk
-        )
-        embeddings.append(resp.data[0].embedding)
-    arr = np.array(embeddings, dtype="float32")
+    # 2) Cria índice FAISS
+    index = GPTVectorStoreIndex.from_documents(docs)
 
-    # 3) Monta o índice FAISS
-    index = faiss.IndexFlatL2(arr.shape[1])
-    index.add(arr)
+    # 3) Persiste em disco
+    storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+    index.storage_context = storage_ctx
+    index.save_to_disk(os.path.join(INDEX_DIR, "index.json"))
 
-    # 4) Persiste o índice e os chunks
-    faiss.write_index(index, INDEX_PATH)
-    with open(CHUNKS_PATH, "wb") as fh:
-        pickle.dump(chunks, fh)
-
-    print(f"✅ Índice FAISS criado em '{INDEX_DIR}' com {len(chunks)} chunks.")
+    print(f"✅ Indice FAISS criado em '{INDEX_DIR}' com {len(docs)} documentos.")
 
 if __name__ == "__main__":
-    if not (os.path.exists(INDEX_PATH) and os.path.exists(CHUNKS_PATH)):
-        build_index()
-    else:
-        print("ℹ️  Índice já existe. Nada a fazer.")
+    main()

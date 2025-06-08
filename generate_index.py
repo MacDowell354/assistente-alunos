@@ -15,13 +15,14 @@ def build_index():
     # 1) Lê e chunkiza o texto
     with open("transcricoes.txt", "r", encoding="utf-8") as f:
         text = f.read()
-    chunks = [text[i:i+CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
+    chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
 
     # 2) Gera embeddings com a nova API openai.embeddings.create
     embeddings = []
     for chunk in chunks:
         resp = openai.embeddings.create(model="text-embedding-3-small", input=chunk)
-        embeddings.append(resp["data"][0]["embedding"])
+        # acessa o embedding via resp.data[0].embedding
+        embeddings.append(resp.data[0].embedding)
     arr = np.array(embeddings, dtype="float32")
 
     # 3) Cria e popula o índice FAISS
@@ -37,7 +38,7 @@ def build_index():
     print(f"✅ Índice FAISS gerado em '{INDEX_DIR}' com {len(chunks)} chunks.")
 
 if __name__ == "__main__":
-    # Só gera se não existir ainda
+    # Gera o índice apenas se não existir
     if not (os.path.exists(INDEX_PATH) and os.path.exists(CHUNKS_PATH)):
         build_index()
     else:

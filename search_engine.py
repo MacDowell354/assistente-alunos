@@ -1,21 +1,39 @@
 import os
-from llama_index import load_index_from_storage
-from llama_index.storage import StorageContext
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
+INDEX_DIR = "storage/chroma"
 TOP_K = 3
 
-# Carrega índice da pasta
-storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = load_index_from_storage(storage_ctx)
-query_engine = index.as_query_engine()
+# Inicializa client (mesmos Settings do build)
+client = chromadb.Client(Settings(
+    chroma_db_impl="duckdb+parquet",
+    persist_directory=INDEX_DIR
+))
+
+# Mesma função de embedding
+embed_fn = embedding_functions.OpenAIEmbeddingFunction(
+    api_key=OPENAI_API_KEY,
+    model_name="text-embedding-3-small"
+)
+
+# Obtém coleção já criada
+collection = client.get_collection(
+    name="transcripts",
+    embedding_function=embed_fn
+)
 
 def retrieve_relevant_context(question: str) -> str:
     """
-    Retorna os TOP_K trechos mais relevantes para a pergunta.
+    Consulta os TOP_K chunks mais relevantes para a pergunta
+    e retorna a concatenação deles como contexto.
     """
-    resp = query_engine.query(question, similarity_top_k=TOP_K)
-    # 'resp' já vem como objeto que imprime o texto concatenado
-    return str(resp)
+    results = collection.query(
+        query_texts=[question],
+        n_results=TOP_K
+    )
+    docs = results["documents"][0]  # lista de strings
+    return "\n\n---\n\n".join(docs)

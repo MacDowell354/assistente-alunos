@@ -1,31 +1,21 @@
 import os
-import pickle
-import faiss
-import numpy as np
-import openai
+from llama_index import load_index_from_storage
+from llama_index.storage import StorageContext
 
 # --- Configurações ---
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
-INDEX_PATH = os.path.join(INDEX_DIR, "faiss.index")
-CHUNKS_PATH = os.path.join(INDEX_DIR, "chunks.pkl")
-TOP_K = 3  # quantos resultados retornar
+TOP_K = 3
 
-# 1) Carrega o índice e os chunks
-index = faiss.read_index(INDEX_PATH)
-with open(CHUNKS_PATH, "rb") as fh:
-    chunks = pickle.load(fh)
+# Carrega índice da pasta
+storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+index = load_index_from_storage(storage_ctx)
+query_engine = index.as_query_engine()
 
 def retrieve_relevant_context(question: str) -> str:
     """
-    Busca os TOP_K chunks mais relevantes para 'question'
-    e retorna-os concatenados como contexto.
+    Retorna os TOP_K trechos mais relevantes para a pergunta.
     """
-    resp = openai.embeddings.create(
-        model="text-embedding-3-small",
-        input=question
-    )
-    q_emb = np.array([resp.data[0].embedding], dtype="float32")
-    _, I = index.search(q_emb, TOP_K)
-    selected = [chunks[i] for i in I[0]]
-    return "\n\n---\n\n".join(selected)
+    resp = query_engine.query(question, similarity_top_k=TOP_K)
+    # 'resp' já vem como objeto que imprime o texto concatenado
+    return str(resp)

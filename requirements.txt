@@ -10,9 +10,11 @@ passlib[bcrypt]>=1.7.4
 bcrypt==3.2.2
 python-jose[cryptography]>=3.3.0
 
-# OpenAI (compatível com llama-index-core)
+# OpenAI (API atual)
 openai>=1.1.0
 
-# Embeddings + FAISS index
-llama-index==0.10.42
+# ChromaDB Vector Store
+chromadb>=0.3.23
+
+# Opcional: outro backend de vetor
 faiss-cpu>=1.7.3

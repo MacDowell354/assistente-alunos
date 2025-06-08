@@ -8,15 +8,14 @@ from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from dotenv import load_dotenv
+from typing import Optional
 
 from search_engine import retrieve_relevant_context
-from gpt_utils import generate_answer  # helper para chamada GPT com contexto e histórico
+from gpt_utils import generate_answer
 
-# --- Carrega variáveis de ambiente ---
 load_dotenv()
 
-# --- Configurações de autenticação JWT ---
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "segredo-teste")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
@@ -48,12 +47,10 @@ def get_current_user(token: str = Depends(lambda request: request.cookies.get("t
         raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
     return user
 
-# --- Inicializa FastAPI e templates ---
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- Rotas ---
 @app.get("/")
 def root():
     return RedirectResponse(url="/login")
@@ -73,10 +70,15 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
 
 @app.get("/chat", response_class=HTMLResponse)
 def chat_get(request: Request, user: str = Depends(get_current_user)):
+    print("✅ Entrou na rota GET /chat corretamente")
     return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
 @app.post("/ask", response_class=HTMLResponse)
-async def ask(request: Request, question: str = Form(...), user: str = Depends(get_current_user)):
+async def ask(request: Request, question: Optional[str] = Form(None), user: str = Depends(get_current_user)):
+    if not question:
+        print("⚠️ POST para /ask sem campo 'question'. Redirecionando para /chat...")
+        return RedirectResponse(url="/chat", status_code=302)
+
     form_data = await request.form()
     history_str = form_data.get("history", "[]")
     try:
@@ -86,6 +88,7 @@ async def ask(request: Request, question: str = Form(...), user: str = Depends(g
 
     context = retrieve_relevant_context(question)
     answer = generate_answer(question, context=context, history=history)
+
     new_history = history + [{"user": question, "ai": answer}]
     return templates.TemplateResponse("chat.html", {
         "request": request,

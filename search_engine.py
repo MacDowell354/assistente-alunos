@@ -1,29 +1,39 @@
+# search_engine.py
 import os
-from llama_index import load_index_from_storage, ServiceContext
-from llama_index.storage.storage_context import StorageContext
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.settings import Settings
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
+INDEX_DIR = "storage/chroma"
+TOP_K = 3  # quantos pedaços trazer
 
-# inicializa o embedding
-Settings.embed_model = OpenAIEmbedding(
-    model="text-embedding-3-small",
-    api_key=OPENAI_API_KEY,
+# 1) inicializa client e coleção (mesmo nome do generate_index.py)
+client = chromadb.Client(
+    Settings(
+        chroma_db_impl="duckdb+parquet",
+        persist_directory=INDEX_DIR
+    )
 )
-
-# carrega o índice da pasta ./storage
-storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-service_ctx = ServiceContext.from_defaults()
-index = load_index_from_storage(storage_ctx, service_context=service_ctx)
+embed_fn = embedding_functions.OpenAIEmbeddingFunction(
+    api_key=OPENAI_API_KEY,
+    model_name="text-embedding-3-small"
+)
+collection = client.get_collection(
+    name="transcripts",
+    embedding_function=embed_fn
+)
 
 def retrieve_relevant_context(question: str) -> str:
     """
-    Retorna o contexto mais relevante para a pergunta,
-    usando o índice carregado em memória.
+    Consulta os TOP_K pedaços mais relevantes para 'question'
+    e retorna a concatenação deles.
     """
-    q_engine = index.as_query_engine()
-    result = q_engine.query(question)
-    return str(result)
+    results = collection.query(
+        query_texts=[question],
+        n_results=TOP_K
+    )
+    # results["documents"] é lista de listas, pegamos a primeira
+    docs = results["documents"][0]
+    return "\n\n---\n\n".join(docs)

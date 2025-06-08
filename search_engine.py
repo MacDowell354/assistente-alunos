@@ -1,17 +1,29 @@
-import os, pickle, numpy as np, faiss, openai
+import os
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+from llama_index import load_index_from_storage
+from llama_index.storage.storage_context import StorageContext
+from llama_index import ServiceContext
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+# --- Configurações ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
-INDEX_PATH = os.path.join(INDEX_DIR, "faiss.index")
-CHUNKS_PATH = os.path.join(INDEX_DIR, "chunks.pkl")
-TOP_K = 3
 
-idx = faiss.read_index(INDEX_PATH)
-with open(CHUNKS_PATH, "rb") as f:
-    chunks = pickle.load(f)
+# 1) modelo de embeddings idêntico ao build
+embed_model = OpenAIEmbedding(
+    api_key=OPENAI_API_KEY,
+    model="text-embedding-3-small"
+)
+service_ctx = ServiceContext.from_defaults(embed_model=embed_model)
+
+# 2) carrega índice FAISS gerado
+storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
+index = load_index_from_storage(storage_ctx, service_context=service_ctx)
 
 def retrieve_relevant_context(question: str) -> str:
-    resp = openai.embeddings.create(model="text-embedding-3-small", input=question)
-    q_emb = np.array([resp.data[0].embedding], dtype="float32")
-    _, I = idx.search(q_emb, TOP_K)
-    return "\n\n---\n\n".join(chunks[i] for i in I[0])
+    """
+    Busca os 3 chunks mais relevantes e concatena.
+    """
+    qe = index.as_query_engine(similarity_top_k=3)
+    response = qe.query(question)
+    return str(response)

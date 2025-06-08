@@ -13,15 +13,15 @@ from jose import jwt, JWTError
 from gpt_utils import generate_answer
 from search_engine import retrieve_relevant_context
 
-# --- Configurações de Auth ---
+# --- Auth Config ---
 SECRET_KEY = os.getenv("SECRET_KEY", "troque_para_uma_chave_super_secreta")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+DEFAULT_PWD = os.getenv("DEFAULT_STUDENT_PWD", "N4nd@M4c#2025")
 
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# Usuário fixo para teste; depois migre para DB real
 fake_users = {
-    "aluno1": pwd_ctx.hash(os.getenv("DEFAULT_STUDENT_PWD", "N4nd@M4c#2025"))
+    "aluno1": pwd_ctx.hash(DEFAULT_PWD)
 }
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -45,12 +45,17 @@ async def get_current_user(request: Request) -> str:
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-# --- FastAPI & Templates ---
+# --- App & Templates ---
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Redireciona 401 → /login
+# redirect raiz → login
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse("/login")
+
+# custom 401 → /login
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
@@ -59,7 +64,7 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
         return resp
     return HTMLResponse(str(exc.detail), status_code=exc.status_code)
 
-# --- Rotas de Login ---
+# --- Login ---
 @app.get("/login", response_class=HTMLResponse)
 async def login_get(request: Request):
     error = request.cookies.get("login_error")
@@ -84,34 +89,30 @@ async def login_post(request: Request, response: Response,
 # --- Chat Encadeado ---
 @app.get("/chat", response_class=HTMLResponse)
 async def chat_get(request: Request, user: str = Depends(get_current_user)):
-    # history começa vazio
     return templates.TemplateResponse("chat.html", {"request": request, "history": []})
 
 @app.post("/ask", response_class=HTMLResponse)
 async def chat_post(request: Request, question: str = Form(...), user: str = Depends(get_current_user)):
-    # 1) Recupera histórico do hidden field
+    # recupera histórico do hidden field
     form = await request.form()
     history = json.loads(form.get("history", "[]"))
 
-    # 2) Busca contexto semântico
+    # busca contexto semântico
     context = retrieve_relevant_context(question)
 
-    # 3) Gera resposta do GPT com contexto + histórico
+    # gera resposta GPT
     answer = generate_answer(question, context, history)
 
-    # 4) Atualiza histórico
+    # atualiza histórico
     history.append({"role": "Você", "text": question})
     history.append({"role": "IA",    "text": answer})
 
     return templates.TemplateResponse(
         "chat.html",
-        {
-            "request": request,
-            "history": history
-        }
+        {"request": request, "history": history}
     )
 
-# Health check opcional
+# health-check
 @app.get("/health")
 async def health():
     return {"status": "ok"}

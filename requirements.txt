@@ -10,7 +10,7 @@ passlib[bcrypt]>=1.7.4
 bcrypt==3.2.2
 python-jose[cryptography]>=3.3.0
 
-# OpenAI (para embeddings e chamadas GPT)
+# OpenAI (embeddings + GPT)
 openai>=0.27.0
 
 # Llama-Index (FAISS backend)

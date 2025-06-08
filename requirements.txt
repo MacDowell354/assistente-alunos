@@ -10,11 +10,11 @@ passlib[bcrypt]>=1.7.4
 bcrypt==3.2.2
 python-jose[cryptography]>=3.3.0
 
-# OpenAI
+# OpenAI (para o ChromaDB e GPT)
 openai>=0.27.0
 
 # ChromaDB Vector Store
 chromadb>=0.3.23
 
-# opcional: outro backend de vetor
+# Opcional: outro backend de vetor
 faiss-cpu>=1.7.3

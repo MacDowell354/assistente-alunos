@@ -1,39 +1,17 @@
-import os
-import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
+import os, pickle, numpy as np, faiss, openai
 
-# --- Configurações ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage/chroma"
+openai.api_key = os.getenv("OPENAI_API_KEY")
+INDEX_DIR = "storage"
+INDEX_PATH = os.path.join(INDEX_DIR, "faiss.index")
+CHUNKS_PATH = os.path.join(INDEX_DIR, "chunks.pkl")
 TOP_K = 3
 
-# Inicializa client (mesmos Settings do build)
-client = chromadb.Client(Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory=INDEX_DIR
-))
-
-# Mesma função de embedding
-embed_fn = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=OPENAI_API_KEY,
-    model_name="text-embedding-3-small"
-)
-
-# Obtém coleção já criada
-collection = client.get_collection(
-    name="transcripts",
-    embedding_function=embed_fn
-)
+idx = faiss.read_index(INDEX_PATH)
+with open(CHUNKS_PATH, "rb") as f:
+    chunks = pickle.load(f)
 
 def retrieve_relevant_context(question: str) -> str:
-    """
-    Consulta os TOP_K chunks mais relevantes para a pergunta
-    e retorna a concatenação deles como contexto.
-    """
-    results = collection.query(
-        query_texts=[question],
-        n_results=TOP_K
-    )
-    docs = results["documents"][0]  # lista de strings
-    return "\n\n---\n\n".join(docs)
+    resp = openai.embeddings.create(model="text-embedding-3-small", input=question)
+    q_emb = np.array([resp.data[0].embedding], dtype="float32")
+    _, I = idx.search(q_emb, TOP_K)
+    return "\n\n---\n\n".join(chunks[i] for i in I[0])

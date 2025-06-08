@@ -23,7 +23,7 @@ def retrieve_relevant_context(question: str) -> str:
     """
     # 2) Embedding da pergunta
     resp = openai.embeddings.create(model="text-embedding-3-small", input=question)
-    q_emb = np.array([resp["data"][0]["embedding"]], dtype="float32")
+    q_emb = np.array([resp.data[0].embedding], dtype="float32")
 
     # 3) Busca no FAISS
     _, I = index.search(q_emb, TOP_K)

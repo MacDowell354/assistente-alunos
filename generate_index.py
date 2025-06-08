@@ -9,7 +9,7 @@ INDEX_DIR = "storage/chroma"
 CHUNK_SIZE = 1000
 
 def main():
-    # 1) Inicializa o client com Settings
+    # 1) Inicializa o client com Settings (nova API ChromaDB)
     client = chromadb.Client(Settings(
         chroma_db_impl="duckdb+parquet",
         persist_directory=INDEX_DIR
@@ -21,19 +21,19 @@ def main():
         model_name="text-embedding-3-small"
     )
 
-    # 3) Cria ou obtém a coleção
+    # 3) Cria ou obtém a coleção "transcripts"
     collection = client.get_or_create_collection(
         name="transcripts",
         embedding_function=embed_fn
     )
 
-    # 4) Lê e chunkiza todo o texto das transcrições
+    # 4) Carrega e chunkiza todo o texto
     with open("transcricoes.txt", "r", encoding="utf-8") as f:
         text = f.read()
     chunks = [text[i : i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE)]
     ids = [f"chunk_{i}" for i in range(len(chunks))]
 
-    # 5) Adiciona (upsert) todos os chunks
+    # 5) Upsert dos chunks na coleção
     collection.upsert(
         ids=ids,
         documents=chunks,

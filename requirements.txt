@@ -5,15 +5,20 @@ passlib[bcrypt]>=1.7.4
 # JWT
 python-jose[cryptography]>=3.3.0
 
-# FastAPI + Jinja2 + Uvicorn
+# FastAPI + Jinja2 + Uvicorn + Multipart + dotenv
 fastapi==0.95.1
-uvicorn==0.20.0
-jinja2==3.1.2
+uvicorn>=0.20.0
+jinja2>=3.1.2
 python-multipart>=0.0.6
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 
 # OpenAI + embeddings + indexação
 openai>=0.27.0
 llama-index==0.10.42
-langchain>=0.0.289
-langchain-community>=0.0.1
+
+# LangChain e seus extras para o llama-index
+langchain>=0.0.192
+langchain-community>=0.0.10
+
+# opcional, se você usar FAISS local
+faiss-cpu>=1.7.3

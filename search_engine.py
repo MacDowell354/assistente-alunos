@@ -1,29 +1,37 @@
 import os
+import faiss
+import pickle
+import numpy as np
+from openai import OpenAI
+from dotenv import load_dotenv
 
-from llama_index import load_index_from_storage
-from llama_index.storage.storage_context import StorageContext
-from llama_index import ServiceContext
-from llama_index.embeddings.openai import OpenAIEmbedding
+# Carrega variáveis de ambiente
+load_dotenv()
 
-# --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-INDEX_DIR = "storage"
+INDEX_URL = "storage/faiss.index"
+EMB_URL   = "storage/embeddings.pkl"
+TOP_K     = 3
 
-# 1) Mesma embedding usada no build
-embed_model = OpenAIEmbedding(
-    api_key=OPENAI_API_KEY,
-    model="text-embedding-3-small"
-)
-service_ctx = ServiceContext.from_defaults(embed_model=embed_model)
+# 1) inicializa cliente OpenAI
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-# 2) Carrega índice FAISS
-storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = load_index_from_storage(storage_ctx, service_context=service_ctx)
+# 2) carrega índice e chunks
+index = faiss.read_index(INDEX_URL)
+with open(EMB_URL, "rb") as f:
+    chunks = pickle.load(f)
 
 def retrieve_relevant_context(question: str) -> str:
-    """
-    Busca os TOP-3 documentos mais relevantes e retorna a concatenação deles.
-    """
-    qe = index.as_query_engine(similarity_top_k=3)
-    resp = qe.query(question)
-    return str(resp)
+    # a) embedding da pergunta
+    resp = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=question
+    )
+    q_emb = np.array(resp.data[0].embedding).astype("float32")[None, :]
+
+    # b) busca TOP_K vizinhos
+    D, I = index.search(q_emb, TOP_K)
+
+    # c) retorna os chunks correspondentes
+    selected = [ chunks[i] for i in I[0] ]
+    return "\n\n---\n\n".join(selected)

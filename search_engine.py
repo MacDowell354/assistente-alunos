@@ -1,27 +1,29 @@
 import os
-
-from llama_index import ServiceContext
-from llama_index.indices.vector_store import GPTVectorStoreIndex
+from llama_index import load_index_from_storage, ServiceContext
+from llama_index.storage.storage_context import StorageContext
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.storage import StorageContext
+from llama_index.core.settings import Settings
 
 # --- Configurações ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 INDEX_DIR = "storage"
 
-# Inicializa o serviço de embedding
-embed = OpenAIEmbedding(api_key=OPENAI_API_KEY)
-service_ctx = ServiceContext.from_defaults(embed_model=embed)
+# inicializa o embedding
+Settings.embed_model = OpenAIEmbedding(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY,
+)
 
-# Carrega o índice da pasta ./storage
+# carrega o índice da pasta ./storage
 storage_ctx = StorageContext.from_defaults(persist_dir=INDEX_DIR)
-index = GPTVectorStoreIndex.load_from_storage(storage_ctx, service_context=service_ctx)
+service_ctx = ServiceContext.from_defaults()
+index = load_index_from_storage(storage_ctx, service_context=service_ctx)
 
 def retrieve_relevant_context(question: str) -> str:
     """
-    Retorna o trecho mais relevante do índice
-    para a pergunta dada.
+    Retorna o contexto mais relevante para a pergunta,
+    usando o índice carregado em memória.
     """
     q_engine = index.as_query_engine()
-    resp = q_engine.query(question)
-    return str(resp)
+    result = q_engine.query(question)
+    return str(result)

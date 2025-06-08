@@ -13,8 +13,8 @@ python-jose[cryptography]>=3.3.0
 # OpenAI (Chat + Embeddings)
 openai>=0.27.0
 
-# ChromaDB para vector store
+# ChromaDB para vector store (duckdb+parquet)
 chromadb>=0.3.23
 
-# (opcional) FAISS caso queira outro backend
+# opcional, se quiser suportar outros backends
 faiss-cpu>=1.7.3

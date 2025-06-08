@@ -1,24 +1,20 @@
-# bcrypt compatível com passlib
-bcrypt==3.2.2
-passlib[bcrypt]>=1.7.4
-
-# JWT
-python-jose[cryptography]>=3.3.0
-
-# FastAPI + Jinja2 + Uvicorn + Multipart + dotenv
-fastapi==0.95.1
+# FastAPI + templates + servidor
+fastapi>=0.95.1
 uvicorn>=0.20.0
 jinja2>=3.1.2
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
 
-# OpenAI + embeddings + indexação
+# Autenticação
+passlib[bcrypt]>=1.7.4
+bcrypt==3.2.2
+python-jose[cryptography]>=3.3.0
+
+# OpenAI (Chat + Embeddings)
 openai>=0.27.0
-llama-index==0.10.42
 
-# LangChain e seus extras para o llama-index
-langchain>=0.0.192
-langchain-community>=0.0.10
+# ChromaDB para vector store
+chromadb>=0.3.23
 
-# opcional, se você usar FAISS local
+# (opcional) FAISS caso queira outro backend
 faiss-cpu>=1.7.3

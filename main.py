@@ -1,29 +1,38 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, Response
+# No topo do arquivo (imports)
+import os
+from fastapi import FastAPI, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import json
+# ... seus outros imports (jwt, passlib, etc)
 
 from gpt_utils import generate_answer
-from search_engine import retrieve_relevant_context
-from auth import get_current_user  # sua lógica de auth existente
+from search_engine import retrieve_relevant_context  # <-- novo import
 
+# --- App & Templates ---
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-@app.get("/", response_class=HTMLResponse)
-async def chat_get(request: Request, user: str = Depends(get_current_user)):
-    return templates.TemplateResponse("chat.html", {"request": request, "history": []})
+# --- Dentro do endpoint de chat ---
+@app.post("/ask", response_class=HTMLResponse)
+async def ask(request: Request, question: str = Form(...), token: str = Depends(get_current_user)):
+    # 1) Recupera histórico (lista de Q/As já em session ou cookie)
+    history = get_history_from_request(request)
 
-@app.post("/", response_class=HTMLResponse)
-async def chat_post(request: Request, question: str = Form(...), user: str = Depends(get_current_user)):
-    form = await request.form()
-    history = json.loads(form.get("history", "[]"))
-
-    # Busca semântica + geração de resposta
+    # 2) Busca contexto semântico
     context = retrieve_relevant_context(question)
-    answer = generate_answer(question, context, history)
 
-    history.append({"role": "Você", "text": question})
-    history.append({"role": "IA",    "text": answer})
+    # 3) Chama seu helper para gerar a resposta do GPT,
+    #    passando o contexto + histórico + pergunta nova
+    answer = generate_answer(question, context=context, history=history)
 
-    return templates.TemplateResponse("chat.html", {"request": request, "history": history})
+    # 4) Renderiza o chat.html com todo histórico + nova Q/A
+    new_history = history + [{"user": question, "ai": answer}]
+    return templates.TemplateResponse(
+        "chat.html",
+        {
+            "request": request,
+            "history": new_history
+        }
+    )

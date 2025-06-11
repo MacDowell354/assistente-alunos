@@ -3,35 +3,85 @@
 <head>
   <meta charset="UTF-8" />
   <title>Chat com IA - Nanda Mac</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background-color: #ffffff;
+      padding: 24px;
+      max-width: 600px;
+      width: 90%;
+      border-radius: 12px;
+      box-shadow: 0 0 16px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #4f46e5;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .box {
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: block;
+    }
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      resize: none;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      background-color: #4f46e5;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #4338ca;
+    }
+  </style>
 </head>
-<body class="bg-light">
-  <div class="container mt-5">
-    <div class="card p-4 shadow-lg border-0">
-      <h2 class="text-center text-primary mb-4">🤖 Assistente Inteligente - Nanda Mac</h2>
+<body>
+  <div class="container">
+    <h2>🤖 Assistente Inteligente - Nanda Mac</h2>
 
-      {% if history %}
-        <div class="mb-4">
-          {% for msg in history %}
-            <div class="mb-3 p-3 bg-light border rounded">
-              <p class="mb-1"><strong class="text-muted">Você:</strong> {{ msg.user }}</p>
-              <p class="mb-0"><strong class="text-muted">IA:</strong> {{ msg.ai }}</p>
-            </div>
-          {% endfor %}
+    {% if history %}
+      {% for msg in history %}
+        <div class="box">
+          <p><strong>Você:</strong> {{ msg.user }}</p>
+          <p><strong>IA:</strong> {{ msg.ai }}</p>
         </div>
-      {% endif %}
-      <form method="post" action="/ask">
-        <input type="hidden" name="history" value='{{ history | tojson }}'>
-        <div class="mb-3">
-          <label for="question" class="form-label fw-semibold">Digite sua pergunta:</label>
-          <textarea class="form-control" id="question" name="question" rows="3" placeholder="Escreva sua dúvida sobre o curso ou os módulos..." required></textarea>
-        </div>
-        <div class="d-grid">
-          <button type="submit" class="btn btn-primary btn-lg">Enviar</button>
-        </div>
-      </form>
-    </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" action="/ask">
+      <input type="hidden" name="history" value='{{ history | tojson }}'>
+      <label for="question">Digite sua pergunta:</label>
+      <textarea id="question" name="question" rows="3" placeholder="Escreva sua dúvida sobre o curso ou os módulos..." required></textarea>
+      <button type="submit">Enviar</button>
+    </form>
   </div>
 </body>
 </html>

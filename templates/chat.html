@@ -21,7 +21,6 @@
           {% endfor %}
         </div>
       {% endif %}
-
       <form method="post" action="/ask">
         <input type="hidden" name="history" value='{{ history | tojson }}'>
         <div class="mb-3">

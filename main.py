@@ -37,14 +37,14 @@ def create_access_token(data: dict):
 
 def get_current_user(token: str = Depends(lambda request: request.cookies.get("token"))):
     if not token:
-        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/entrar"})
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user = payload.get("sub")
         if user is None:
             raise
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/entrar"})
     return user
 
 app = FastAPI()
@@ -53,13 +53,13 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 def root():
-    return RedirectResponse(url="/login")
+    return RedirectResponse(url="/entrar")
 
-@app.get("/login", response_class=HTMLResponse)
+@app.get("/entrar", response_class=HTMLResponse)
 def login_get(request: Request):
     return templates.TemplateResponse("login_temp.html", {"request": request, "error": None})
 
-@app.post("/login")
+@app.post("/entrar")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     if not authenticate_user(username, password):
         return templates.TemplateResponse("login_temp.html", {"request": request, "error": "Usuário ou senha inválidos."})

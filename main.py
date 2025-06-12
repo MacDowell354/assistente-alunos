@@ -57,12 +57,12 @@ def root():
 
 @app.get("/entrar", response_class=HTMLResponse)
 def login_get(request: Request):
-    return templates.TemplateResponse("login_final.html", {"request": request, "error": None})
+    return templates.TemplateResponse("login_final_2.html", {"request": request, "error": None})
 
 @app.post("/entrar")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     if not authenticate_user(username, password):
-        return templates.TemplateResponse("login_final.html", {"request": request, "error": "Usuário ou senha inválidos."})
+        return templates.TemplateResponse("login_final_2.html", {"request": request, "error": "Usuário ou senha inválidos."})
     token = create_access_token({"sub": username})
     response = RedirectResponse(url="/chat", status_code=status.HTTP_302_FOUND)
     response.set_cookie(key="token", value=token, httponly=True)
@@ -77,20 +77,3 @@ def chat_get(request: Request, user: str = Depends(get_current_user)):
 async def ask(request: Request, question: Optional[str] = Form(None), user: str = Depends(get_current_user)):
     if not question:
         print("⚠️ POST para /ask sem campo 'question'. Redirecionando para /chat...")
-        return RedirectResponse(url="/chat", status_code=302)
-
-    form_data = await request.form()
-    history_str = form_data.get("history", "[]")
-    try:
-        history = json.loads(history_str)
-    except Exception:
-        history = []
-
-    context = retrieve_relevant_context(question)
-    answer = generate_answer(question, context=context, history=history)
-
-    new_history = history + [{"user": question, "ai": answer}]
-    return templates.TemplateResponse("chat.html", {
-        "request": request,
-        "history": new_history
-    })

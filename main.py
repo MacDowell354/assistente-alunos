@@ -57,7 +57,7 @@ def root():
 
 @app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse("login_temp.html", {"request": request, "error": None})
 
 @app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):

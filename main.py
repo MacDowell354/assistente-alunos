@@ -62,7 +62,7 @@ def login_get(request: Request):
 @app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     if not authenticate_user(username, password):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Usuário ou senha inválidos."})
+        return templates.TemplateResponse("login_temp.html", {"request": request, "error": "Usuário ou senha inválidos."})
     token = create_access_token({"sub": username})
     response = RedirectResponse(url="/chat", status_code=status.HTTP_302_FOUND)
     response.set_cookie(key="token", value=token, httponly=True)

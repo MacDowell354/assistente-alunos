@@ -13,6 +13,10 @@ from typing import Optional
 from search_engine import retrieve_relevant_context
 from gpt_utils import generate_answer
 
+# ======================
+# CONFIGURAÇÕES GERAIS
+# ======================
+
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "segredo-teste")
@@ -35,45 +39,100 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(token: str = Depends(lambda request: request.cookies.get("token"))):
+# ======================
+# MIDDLEWARE DE AUTENTICAÇÃO
+# ======================
+def get_current_user(request: Request):
+    token = request.cookies.get("token")
     if not token:
-        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/entrar"})
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user = payload.get("sub")
-        if user is None:
-            raise
+        if not user:
+            raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
+        return user
+
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/entrar"})
-    return user
+        raise HTTPException(status_code=status.HTTP_302_FOUND, headers={"Location": "/login"})
+
+
+# ======================
+# CONFIGURAÇÃO DO FASTAPI
+# ======================
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# ======================
+# ROTAS DE LOGIN (NOVO PADRÃO)
+# ======================
+
 @app.get("/")
 def root():
-    return RedirectResponse(url="/entrar")
+    return RedirectResponse(url="/login")
 
-@app.get("/entrar", response_class=HTMLResponse)
+
+@app.get("/login", response_class=HTMLResponse)
 def login_get(request: Request):
     return templates.TemplateResponse("login_final_2.html", {"request": request, "error": None})
 
-@app.post("/entrar")
+
+@app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     if not authenticate_user(username, password):
-        return templates.TemplateResponse("login_final_2.html", {"request": request, "error": "Usuário ou senha inválidos."})
+        return templates.TemplateResponse(
+            "login_final_2.html",
+            {"request": request, "error": "Usuário ou senha inválidos."}
+        )
+
     token = create_access_token({"sub": username})
     response = RedirectResponse(url="/chat", status_code=status.HTTP_302_FOUND)
     response.set_cookie(key="token", value=token, httponly=True)
     return response
 
+
+# ======================
+# CHAT
+# ======================
+
 @app.get("/chat", response_class=HTMLResponse)
 def chat_get(request: Request, user: str = Depends(get_current_user)):
-    print("✅ Entrou na rota GET /chat corretamente")
+    print("✅ GET /chat carregado corretamente")
     return templates.TemplateResponse("chat.html", {"request": request, "history": []})
+
 
 @app.post("/ask", response_class=HTMLResponse)
 async def ask(request: Request, question: Optional[str] = Form(None), user: str = Depends(get_current_user)):
     if not question:
-        print("⚠️ POST para /ask sem campo 'question'. Redirecionando para /chat...")
+        print("⚠️ POST /ask sem pergunta → Redirecionando para /chat")
+        return RedirectResponse(url="/chat")
+
+    form_data = await request.form()
+    history_str = form_data.get("history", "[]")
+
+    try:
+        history = json.loads(history_str)
+    except Exception:
+        history = []
+
+    context = retrieve_relevant_context(question)
+    print(f"🔍 CONTEXTO EXTRAÍDO: {context}")
+
+    answer_markdown, quick_replies = generate_answer(question, context, history, tipo_prompt="geral")
+
+    from markdown2 import markdown
+    answer_html = markdown(answer_markdown)
+
+    new_history = history + [{
+        "user": question,
+        "ai": answer_html,
+        "quick_replies": quick_replies
+    }]
+
+    return templates.TemplateResponse("chat.html", {
+        "request": request,
+        "history": new_history
+    })
